@@ -10,6 +10,7 @@
                 <div class="user_greetings hidden md:block">
                     <h2>Hi, <?php
                             if (is_user_logged_in()) {
+                                $current_user = wp_get_current_user();
                                 // Display first name and last name
                                 echo esc_html($current_user->first_name . ' ' . $current_user->last_name);
                             } else {

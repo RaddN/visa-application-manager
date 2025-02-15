@@ -1,5 +1,334 @@
 <?php
 
+function up_handle_user_profile_update()
+{
+    // Ensure user is logged in
+    if (!is_user_logged_in()) {
+        return;
+    }
+
+    global $wpdb;
+    $user_id = get_current_user_id();
+
+    // Handle user profile update
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_profile_nonce'])) {
+        if (!wp_verify_nonce($_POST['user_profile_nonce'], 'update_user_profile')) {
+            wp_die('Security check failed.');
+        }
+
+        // Sanitize input values
+        $first_name = sanitize_text_field($_POST['first_name']);
+        $last_name = sanitize_text_field($_POST['last_name']);
+        $email = sanitize_email($_POST['email']);
+        $phone = sanitize_text_field($_POST['phone']);
+        $display_name = $first_name . ' ' . $last_name; // Concatenate first and last name
+
+        // Update user data
+        wp_update_user(array(
+            'ID'           => $user_id,
+            'first_name'   => $first_name,
+            'last_name'    => $last_name,
+            'user_email'   => $email,
+            'display_name' => $display_name,
+        ));
+
+        // Update user meta for phone number
+        update_user_meta($user_id, 'phone', $phone);
+
+        // Redirect to avoid resubmission
+        wp_safe_redirect($_SERVER['REQUEST_URI']);
+        exit;
+    }
+
+    // Handle spouse form submission
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_profile_spouse_nonce'])) {
+        if (!wp_verify_nonce($_POST['user_profile_spouse_nonce'], 'update_spouse_info')) {
+            wp_die('Security check failed.');
+        }
+
+        // Sanitize input values
+        $spouse_name = sanitize_text_field($_POST['spouseName']);
+        $dob = sanitize_text_field($_POST['spouseDateOfBirth']);
+        $dom = sanitize_text_field($_POST['dateOfMarriage']);
+        $place_of_marriage = sanitize_text_field($_POST['placeOfMarriage']);
+
+        // Check if user already has a spouse record
+        $table_name = $wpdb->prefix . 'spouse_info';
+        $existing_spouse = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE user_id = %d", $user_id));
+
+        if ($existing_spouse) {
+            // Update existing spouse record
+            $wpdb->update(
+                $table_name,
+                array(
+                    'name'              => $spouse_name,
+                    'date_of_birth'     => $dob,
+                    'date_of_marriage'  => $dom,
+                    'place_of_marriage' => $place_of_marriage,
+                    'updated_at'        => current_time('mysql')
+                ),
+                array('user_id' => $user_id),
+                array('%s', '%s', '%s', '%s', '%s'),
+                array('%d')
+            );
+        } else {
+            // Insert new spouse record
+            $wpdb->insert(
+                $table_name,
+                array(
+                    'user_id'           => $user_id,
+                    'name'              => $spouse_name,
+                    'date_of_birth'     => $dob,
+                    'date_of_marriage'  => $dom,
+                    'place_of_marriage' => $place_of_marriage,
+                    'created_at'        => current_time('mysql'),
+                    'updated_at'        => current_time('mysql')
+                ),
+                array('%d', '%s', '%s', '%s', '%s', '%s', '%s')
+            );
+        }
+
+        // Redirect to avoid resubmission
+        wp_safe_redirect($_SERVER['REQUEST_URI']);
+        exit;
+    }
+
+    // handle Sibling Information form submission in wp_siblings_info table siblings can be multiple for each user
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_profile_sibling_nonce'])) {
+
+        // Verify nonce for security
+        if (!wp_verify_nonce($_POST['user_profile_sibling_nonce'], 'update_sibling_info')) {
+            wp_die('Security check failed.');
+        }
+
+        global $wpdb;
+        $user_id = get_current_user_id();
+
+        // Sanitize input values
+        $relationship = sanitize_text_field($_POST['relationship']);
+        $name = sanitize_text_field($_POST['name']);
+        $dob = sanitize_text_field($_POST['dateOfBirth']);
+        $present_address = sanitize_textarea_field($_POST['presentAddress']);
+
+        // Define the table name
+        $table_name = $wpdb->prefix . 'siblings_info';
+
+        // Insert new sibling record
+        $wpdb->insert(
+            $table_name,
+            array(
+                'user_id'         => $user_id,
+                'relationship'    => $relationship,
+                'name'            => $name,
+                'date_of_birth'   => $dob,
+                'present_address' => $present_address,
+                'created_at'      => current_time('mysql'),
+                'updated_at'      => current_time('mysql')
+            ),
+            array('%d', '%s', '%s', '%s', '%s', '%s', '%s')
+        );
+
+        // Redirect to avoid form resubmission
+        wp_safe_redirect($_SERVER['REQUEST_URI']);
+        exit;
+    }
+
+    // Handle Parent Information form submission in wp_parents_info table parents can't be multiple for each user
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_profile_parent_nonce'])) {
+
+        // Verify nonce for security
+        if (!wp_verify_nonce($_POST['user_profile_parent_nonce'], 'update_parent_info')) {
+            wp_die('Security check failed.');
+        }
+
+        global $wpdb;
+        $user_id = get_current_user_id();
+
+        if (!$user_id) {
+            wp_die('User not logged in');
+        }
+
+        // Sanitize input values
+        $father_name = sanitize_text_field($_POST['fatherName']);
+        $father_dob = sanitize_text_field($_POST['fatherDateOfBirth']);
+        $father_dod = sanitize_text_field($_POST['fatherDateOfDeath']);
+        $father_address = sanitize_textarea_field($_POST['fatherPresentAddress']);
+
+        $mother_name = sanitize_text_field($_POST['motherName']);
+        $mother_dob = sanitize_text_field($_POST['motherDateOfBirth']);
+        $mother_dod = sanitize_text_field($_POST['motherDateOfDeath']);
+        $mother_address = sanitize_textarea_field($_POST['motherPresentAddress']);
+
+        // Define table name for parent information
+        $table_name = $wpdb->prefix . 'parents_info';
+
+        // Check if a record for the user already exists
+        $existing_record = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_name WHERE user_id = %d",
+            $user_id
+        ));
+
+        if ($existing_record) {
+            // Update existing record for the user
+            $wpdb->update(
+                $table_name,
+                array(
+                    'father_name' => $father_name,
+                    'father_date_of_birth' => $father_dob,
+                    'father_date_of_death' => $father_dod,
+                    'father_address' => $father_address,
+                    'mother_name' => $mother_name,
+                    'mother_date_of_birth' => $mother_dob,
+                    'mother_date_of_death' => $mother_dod,
+                    'mother_address' => $mother_address,
+                    'updated_at' => current_time('mysql')
+                ),
+                array('user_id' => $user_id),
+                array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s'),
+                array('%d')
+            );
+        } else {
+            // Insert new record for the user
+            $wpdb->insert(
+                $table_name,
+                array(
+                    'user_id' => $user_id,
+                    'father_name' => $father_name,
+                    'father_date_of_birth' => $father_dob,
+                    'father_date_of_death' => $father_dod,
+                    'father_address' => $father_address,
+                    'mother_name' => $mother_name,
+                    'mother_date_of_birth' => $mother_dob,
+                    'mother_date_of_death' => $mother_dod,
+                    'mother_address' => $mother_address,
+                    'created_at' => current_time('mysql'),
+                    'updated_at' => current_time('mysql')
+                ),
+                array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+            );
+        }
+
+        // Redirect to avoid form resubmission
+        wp_safe_redirect($_SERVER['REQUEST_URI']);
+        exit;
+    }
+    if (isset($_POST['user_profile_children_nonce']) && wp_verify_nonce($_POST['user_profile_children_nonce'], 'update_children_info')) {
+
+        // Get the current user ID
+        $user_id = get_current_user_id();
+
+        // Check if form data is submitted
+        if ($user_id && isset($_POST['name'], $_POST['dateOfBirth'], $_POST['presentAddress'])) {
+            global $wpdb;
+
+            // Loop through the array of children info
+            foreach ($_POST['name'] as $key => $name) {
+                // Sanitize the input values
+                $name = sanitize_text_field($name);
+                $date_of_birth = sanitize_text_field($_POST['dateOfBirth'][$key]);
+                $present_address = sanitize_textarea_field($_POST['presentAddress'][$key]);
+
+                // Insert data into wp_children_info table
+                $wpdb->insert(
+                    $wpdb->prefix . 'children_info',
+                    array(
+                        'user_id' => $user_id,
+                        'name' => $name,
+                        'date_of_birth' => $date_of_birth,
+                        'present_address' => $present_address,
+                        'created_at' => current_time('mysql'),
+                        'updated_at' => current_time('mysql')
+                    )
+                );
+            }
+
+            // Success message or redirect
+            echo "Children information saved successfully!";
+        } else {
+            echo "Please fill in all required fields.";
+        }
+    }
+
+    // ocupations form submission
+
+    if (isset($_POST['user_profile_occupations_nonce']) && wp_verify_nonce($_POST['user_profile_occupations_nonce'], 'update_occupations_info')) {
+
+        $user_id = get_current_user_id(); // Get the current logged-in user ID
+
+        // Collect form data
+        $company_name = sanitize_text_field($_POST['nameOfCompany']);
+        $type_of_company = sanitize_text_field($_POST['typeOfCompany']);
+        $business_sector = sanitize_text_field($_POST['businessSectorBriefDescription']);
+        $company_address = sanitize_text_field($_POST['companyAddress']);
+        $designation = sanitize_text_field($_POST['designation']);
+        $joining_date = sanitize_text_field($_POST['joiningDate']);
+        $company_start_date = sanitize_text_field($_POST['companyStartDate']);
+        $responsibilities = sanitize_textarea_field($_POST['responsibilities']);
+        $company_email = sanitize_email($_POST['companyEmail']);
+        $company_phone = sanitize_text_field($_POST['companyPhoneNumber']);
+
+        // Check if occupation info already exists for the user
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'occupation_info';
+
+        $existing_occupation = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT occupation_id FROM $table_name WHERE user_id = %d",
+                $user_id
+            )
+        );
+
+        if ($existing_occupation) {
+            // Update existing occupation info
+            $wpdb->update(
+                $table_name,
+                array(
+                    'company_name' => $company_name,
+                    'type_of_company' => $type_of_company,
+                    'business_sector' => $business_sector,
+                    'company_address' => $company_address,
+                    'designation' => $designation,
+                    'joining_date' => $joining_date,
+                    'company_start_date' => $company_start_date,
+                    'responsibilities' => $responsibilities,
+                    'company_email' => $company_email,
+                    'company_phone' => $company_phone,
+                    'updated_at' => current_time('mysql')
+                ),
+                array('user_id' => $user_id),
+                array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s'),
+                array('%d')
+            );
+        } else {
+            // Insert new occupation info
+            $wpdb->insert(
+                $table_name,
+                array(
+                    'user_id' => $user_id,
+                    'company_name' => $company_name,
+                    'type_of_company' => $type_of_company,
+                    'business_sector' => $business_sector,
+                    'company_address' => $company_address,
+                    'designation' => $designation,
+                    'joining_date' => $joining_date,
+                    'company_start_date' => $company_start_date,
+                    'responsibilities' => $responsibilities,
+                    'company_email' => $company_email,
+                    'company_phone' => $company_phone,
+                    'created_at' => current_time('mysql'),
+                    'updated_at' => current_time('mysql')
+                ),
+                array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+            );
+        }
+
+        // Optionally, add a success message
+        echo '<div class="updated"><p>Occupation information saved successfully.</p></div>';
+    }
+}
+
+// Hook to process before headers are sent
+add_action('template_redirect', 'up_handle_user_profile_update');
 // Create a shortcode to display the user profile
 function up_user_profile_shortcode()
 {
@@ -9,31 +338,6 @@ function up_user_profile_shortcode()
     }
 
     $current_user = wp_get_current_user();
-
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        // Update user information if the form is submitted
-        $first_name = sanitize_text_field($_POST['first_name']);
-        $last_name = sanitize_text_field($_POST['last_name']);
-        $email = sanitize_email($_POST['email']);
-        $phone = sanitize_text_field($_POST['phone']);
-        $display_name = $first_name . ' ' . $last_name; // Concatenate first name and last name
-
-        // Update user data
-        wp_update_user(array(
-            'ID' => $current_user->ID,
-            'first_name' => $first_name,
-            'last_name' => $last_name,
-            'user_email' => $email,
-            'display_name' => $display_name, // Update display name
-        ));
-
-        // Update user meta for phone number
-        update_user_meta($current_user->ID, 'phone', $phone);
-
-        // Redirect to avoid resubmission
-        wp_redirect($_SERVER['REQUEST_URI']);
-        exit;
-    }
 
     // Get user meta for phone number
     $phone = get_user_meta($current_user->ID, 'phone', true);
@@ -52,6 +356,16 @@ function up_user_profile_shortcode()
     // Set default values (or empty if no data found)
     $nid_value = isset($user_info->nid_no) ? esc_attr($user_info->nid_no) : '';
     $address_value = isset($user_info->nid_address) ? esc_textarea($user_info->nid_address) : '';
+
+    // Fetch spouse data when rendering the spouse modal
+
+    // Usage Example
+    $spouse = get_spouse_info_for_current_user();
+    $siblings = get_sibling_info_for_current_user();
+    $parent_info = get_parent_info($user_id);
+    $children = get_children_info($user_id);
+    $occupation_info = get_existing_occupation_info($user_id);
+
     ?>
     <?php include 'head.php'; ?>
 
@@ -19345,8 +19659,8 @@ function up_user_profile_shortcode()
                                                     </div>
                                                     <div class="profile_info_area mt-[20px]">
                                                         <div class="profile_add_card">
-                                                            <h2 class="title">NID Informations</h2>                                                            
-                                                                    <?php echo $nid_value==='' ? generate_add_button("nid_add") : generate_icon_button("nid_add"); ?>
+                                                            <h2 class="title">NID Informations</h2>
+                                                            <?php echo $nid_value === '' ? generate_add_button("nid_add") : generate_icon_button("nid_add"); ?>
                                                         </div>
                                                         <div class="ant-collapse ant-collapse-icon-position-start css-1588u1j" role="tablist">
                                                             <div class="ant-collapse-item">
@@ -19383,8 +19697,8 @@ function up_user_profile_shortcode()
                                                     class="ant-col ant-col-xs-24 ant-col-md-12 ant-col-lg-24 css-1588u1j">
                                                     <div class="profile_info_area space-y-2">
                                                         <div class="profile_add_card">
-                                                            <h2 class="title">Passport Informations</h2>                                                            
-                                                                    <?php echo generate_add_button("passport_add"); ?>
+                                                            <h2 class="title">Passport Informations</h2>
+                                                            <?php echo generate_add_button("passport_add"); ?>
                                                         </div>
                                                         <div class="ant-collapse ant-collapse-icon-position-start css-1588u1j" role="tablist">
                                                             <div class="ant-collapse-item">
@@ -19424,11 +19738,11 @@ function up_user_profile_shortcode()
                                                                             </div>
                                                                             <div class="item py-2">
                                                                                 <p>Passport Country Code</p>
-                                                                                <h5>Not Added</h5>
+                                                                                <h5><?php echo esc_html($spouse->name); ?></h5>
                                                                             </div>
                                                                             <div class="item py-2">
                                                                                 <p>Passport Nationality</p>
-                                                                                <h5>Not Added</h5>
+                                                                                <h5><?php echo esc_html($spouse->name); ?></h5>
                                                                             </div>
                                                                             <div class="item py-2">
                                                                                 <p>Passport Date Of Birth</p>
@@ -19528,82 +19842,89 @@ function up_user_profile_shortcode()
                                                         class="ant-col ant-col-xs-24 ant-col-lg-12 ant-col-xl-8 css-1588u1j">
                                                         <div class="profile_info_area">
                                                             <div class="profile_add_card">
-                                                                <h2 class="title">Spouse Informations</h2>                                                                
-                                                                <?php echo generate_add_button("spouse_add"); ?>
+                                                                <h2 class="title">Spouse Informations</h2>
+                                                                <?php echo $spouse ? generate_icon_button("spouse_add") : generate_add_button("spouse_add"); ?>
                                                             </div>
-                                                            <div class="ant-collapse ant-collapse-icon-position-start css-1588u1j" role="tablist">
-                                                                <div class="ant-collapse-item">
-                                                                    <div class="ant-collapse-header" aria-expanded="false" aria-disabled="false" role="tab" tabindex="0">
-                                                                        <div class="ant-collapse-expand-icon"><span role="img" aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow"><svg viewBox="64 64 896 896" focusable="false" data-icon="right" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="">
-                                                                                    <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z"></path>
-                                                                                </svg></span></div><span class="ant-collapse-header-text">Spouse Information</span>
-                                                                    </div>
-                                                                    <div class="ant-collapse-content ant-collapse-content-inactive ant-collapse-content-hidden" role="tabpanel" style="">
-                                                                        <div class="ant-collapse-content-box">
-                                                                            <div class="provided_information border border-[#d9d9d9] border-none">
-                                                                                <div class="item py-2">
-                                                                                    <p>Spouse Name</p>
-                                                                                    <h5>Not Added</h5>
+                                                            <?php if ($spouse) { ?>
+                                                                <div class="ant-collapse ant-collapse-icon-position-start css-1588u1j" role="tablist">
+                                                                    <div class="ant-collapse-item">
+                                                                        <div class="ant-collapse-header" aria-expanded="false" aria-disabled="false" role="tab" tabindex="0">
+                                                                            <div class="ant-collapse-expand-icon"><span role="img" aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow"><svg viewBox="64 64 896 896" focusable="false" data-icon="right" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="">
+                                                                                        <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z"></path>
+                                                                                    </svg></span></div><span class="ant-collapse-header-text">Spouse Information</span>
+                                                                        </div>
+                                                                        <div class="ant-collapse-content ant-collapse-content-inactive ant-collapse-content-hidden" role="tabpanel" style="">
+                                                                            <div class="ant-collapse-content-box">
+                                                                                <div class="provided_information border border-[#d9d9d9] border-none">
+                                                                                    <div class="item py-2">
+                                                                                        <p>Spouse Name</p>
+                                                                                        <h5><?php echo esc_html($spouse->name); ?></h5>
+                                                                                    </div>
+                                                                                    <div class="item py-2">
+                                                                                        <p>Spouse Date of Birth</p>
+                                                                                        <h5><?php echo esc_html($spouse->date_of_birth); ?></h5>
+                                                                                    </div>
+                                                                                    <div class="item py-2">
+                                                                                        <p>Date of Marriage</p>
+                                                                                        <h5><?php echo esc_html($spouse->date_of_marriage); ?></h5>
+                                                                                    </div>
+                                                                                    <div class="item py-2">
+                                                                                        <p>Place of Marriage</p>
+                                                                                        <h5><?php echo esc_html($spouse->place_of_marriage); ?></h5>
+                                                                                    </div>
+                                                                                    <div class="flex items-center justify-center gap-2 bg-[var(--color-lotion)]"></div>
                                                                                 </div>
-                                                                                <div class="item py-2">
-                                                                                    <p>Spouse Date of Birth</p>
-                                                                                    <h5>Not Added</h5>
-                                                                                </div>
-                                                                                <div class="item py-2">
-                                                                                    <p>Date of Marriage</p>
-                                                                                    <h5>Not Added</h5>
-                                                                                </div>
-                                                                                <div class="item py-2">
-                                                                                    <p>Place of Marriage</p>
-                                                                                    <h5>Not Added</h5>
-                                                                                </div>
-                                                                                <div class="flex items-center justify-center gap-2 bg-[var(--color-lotion)]"></div>
                                                                             </div>
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                            </div>
+                                                            <?php } ?>
                                                         </div>
                                                         <div class="profile_info_area mt-5">
                                                             <div class="profile_add_card">
-                                                                <h2 class="title">Sibling Informations</h2>                                                                
-                                                                        <?php echo generate_add_button("sibling_add"); ?>
+                                                                <h2 class="title">Sibling Informations</h2>
+                                                                <?php echo generate_add_button("sibling_add"); ?>
                                                             </div>
                                                             <div class="ant-collapse ant-collapse-icon-position-start css-1588u1j" role="tablist">
-                                                                <div class="ant-collapse-item">
-                                                                    <div class="ant-collapse-header" aria-expanded="false" aria-disabled="false" role="tab" tabindex="0">
-                                                                        <div class="ant-collapse-expand-icon"><span role="img" aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow"><svg viewBox="64 64 896 896" focusable="false" data-icon="right" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="">
-                                                                                    <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z"></path>
-                                                                                </svg></span></div><span class="ant-collapse-header-text">Raihan Hossain</span>
-                                                                    </div>
-                                                                    <div class="ant-collapse-content ant-collapse-content-inactive ant-collapse-content-hidden" role="tabpanel" style="">
-                                                                        <div class="ant-collapse-content-box">
-                                                                            <div class="provided_information border border-[#d9d9d9] border-none">
-                                                                                <div class="item py-2">
-                                                                                    <p>Sibling name</p>
-                                                                                    <h5>Raihan Hossain</h5>
+                                                                <?php if (!empty($siblings)) {
+                                                                    foreach ($siblings as $sibling) {
+                                                                ?>
+                                                                        <div class="ant-collapse-item">
+                                                                            <div class="ant-collapse-header" aria-expanded="false" aria-disabled="false" role="tab" tabindex="0">
+                                                                                <div class="ant-collapse-expand-icon"><span role="img" aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow"><svg viewBox="64 64 896 896" focusable="false" data-icon="right" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="">
+                                                                                            <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z"></path>
+                                                                                        </svg></span></div><span class="ant-collapse-header-text"><?php echo $sibling->name; ?></span>
+                                                                            </div>
+                                                                            <div class="ant-collapse-content ant-collapse-content-inactive ant-collapse-content-hidden" role="tabpanel" style="">
+                                                                                <div class="ant-collapse-content-box">
+                                                                                    <div class="provided_information border border-[#d9d9d9] border-none">
+                                                                                        <div class="item py-2">
+                                                                                            <p>Sibling name</p>
+                                                                                            <h5><?php echo $sibling->name; ?></h5>
+                                                                                        </div>
+                                                                                        <div class="item py-2">
+                                                                                            <p>Relationship</p>
+                                                                                            <h5><?php echo $sibling->relationship; ?></h5>
+                                                                                        </div>
+                                                                                        <div class="item py-2">
+                                                                                            <p>Date of Birth</p>
+                                                                                            <h5><?php echo $sibling->date_of_birth; ?></h5>
+                                                                                        </div>
+                                                                                        <div class="item py-2">
+                                                                                            <p>Present Address</p>
+                                                                                            <h5><?php echo $sibling->present_address; ?></h5>
+                                                                                        </div>
+                                                                                        <div class="flex items-center justify-center gap-2 bg-[var(--color-lotion)]"><button type="button" class="ant-btn css-1588u1j ant-btn-default" style="padding: 0px; border: none;"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024" class="text-[20px]" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                                                                                                    <path d="M360 184h-8c4.4 0 8-3.6 8-8v8h304v-8c0 4.4 3.6 8 8 8h-8v72h72v-80c0-35.3-28.7-64-64-64H352c-35.3 0-64 28.7-64 64v80h72v-72zm504 72H160c-17.7 0-32 14.3-32 32v32c0 4.4 3.6 8 8 8h60.4l24.7 523c1.6 34.1 29.8 61 63.9 61h454c34.2 0 62.3-26.8 63.9-61l24.7-523H888c4.4 0 8-3.6 8-8v-32c0-17.7-14.3-32-32-32zM731.3 840H292.7l-24.2-512h487l-24.2 512z"></path>
+                                                                                                </svg></button><button type="button" class="ant-btn css-1588u1j ant-btn-default" style="padding: 0px; border: none;"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" class="text-[20px]" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                                                                                                    <path d="M19.045 7.401c.378-.378.586-.88.586-1.414s-.208-1.036-.586-1.414l-1.586-1.586c-.378-.378-.88-.586-1.414-.586s-1.036.208-1.413.585L4 13.585V18h4.413L19.045 7.401zm-3-3 1.587 1.585-1.59 1.584-1.586-1.585 1.589-1.584zM6 16v-1.585l7.04-7.018 1.586 1.586L7.587 16H6zm-2 4h16v2H4z"></path>
+                                                                                                </svg></button></div>
+                                                                                    </div>
                                                                                 </div>
-                                                                                <div class="item py-2">
-                                                                                    <p>Relationship</p>
-                                                                                    <h5>Brother</h5>
-                                                                                </div>
-                                                                                <div class="item py-2">
-                                                                                    <p>Date of Birth</p>
-                                                                                    <h5>2025-01-14</h5>
-                                                                                </div>
-                                                                                <div class="item py-2">
-                                                                                    <p>Present Address</p>
-                                                                                    <h5>sghshg</h5>
-                                                                                </div>
-                                                                                <div class="flex items-center justify-center gap-2 bg-[var(--color-lotion)]"><button type="button" class="ant-btn css-1588u1j ant-btn-default" style="padding: 0px; border: none;"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024" class="text-[20px]" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
-                                                                                            <path d="M360 184h-8c4.4 0 8-3.6 8-8v8h304v-8c0 4.4 3.6 8 8 8h-8v72h72v-80c0-35.3-28.7-64-64-64H352c-35.3 0-64 28.7-64 64v80h72v-72zm504 72H160c-17.7 0-32 14.3-32 32v32c0 4.4 3.6 8 8 8h60.4l24.7 523c1.6 34.1 29.8 61 63.9 61h454c34.2 0 62.3-26.8 63.9-61l24.7-523H888c4.4 0 8-3.6 8-8v-32c0-17.7-14.3-32-32-32zM731.3 840H292.7l-24.2-512h487l-24.2 512z"></path>
-                                                                                        </svg></button><button type="button" class="ant-btn css-1588u1j ant-btn-default" style="padding: 0px; border: none;"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" class="text-[20px]" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
-                                                                                            <path d="M19.045 7.401c.378-.378.586-.88.586-1.414s-.208-1.036-.586-1.414l-1.586-1.586c-.378-.378-.88-.586-1.414-.586s-1.036.208-1.413.585L4 13.585V18h4.413L19.045 7.401zm-3-3 1.587 1.585-1.59 1.584-1.586-1.585 1.589-1.584zM6 16v-1.585l7.04-7.018 1.586 1.586L7.587 16H6zm-2 4h16v2H4z"></path>
-                                                                                        </svg></button></div>
                                                                             </div>
                                                                         </div>
-                                                                    </div>
-                                                                </div>
+                                                                <?php }
+                                                                } ?>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -19612,88 +19933,117 @@ function up_user_profile_shortcode()
                                                         <div class="profile_info_area">
                                                             <div class="profile_add_card">
                                                                 <h2 class="title">Parents Informations</h2>
-                                                                        <?php echo generate_add_button("parents_add"); ?>
+                                                                <?php echo $parent_info ? generate_icon_button("parents_add") : generate_add_button("parents_add"); ?>
                                                             </div>
-                                                            <div class="ant-collapse ant-collapse-icon-position-start css-1588u1j" role="tablist">
-                                                                <div class="ant-collapse-item">
-                                                                    <div class="ant-collapse-header" aria-expanded="false" aria-disabled="false" role="tab" tabindex="0">
-                                                                        <div class="ant-collapse-expand-icon"><span role="img" aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow"><svg viewBox="64 64 896 896" focusable="false" data-icon="right" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="">
-                                                                                    <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z"></path>
-                                                                                </svg></span></div><span class="ant-collapse-header-text">Father Information</span>
+                                                            <?php if ($parent_info) { ?>
+                                                                <div class="ant-collapse ant-collapse-icon-position-start css-1588u1j" role="tablist">
+                                                                    <div class="ant-collapse-item">
+                                                                        <div class="ant-collapse-header" aria-expanded="false" aria-disabled="false" role="tab" tabindex="0">
+                                                                            <div class="ant-collapse-expand-icon"><span role="img" aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow"><svg viewBox="64 64 896 896" focusable="false" data-icon="right" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="">
+                                                                                        <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z"></path>
+                                                                                    </svg></span></div><span class="ant-collapse-header-text">Father Information</span>
+                                                                        </div>
+                                                                        <div class="ant-collapse-content ant-collapse-content-inactive ant-collapse-content-hidden" role="tabpanel" style="">
+                                                                            <div class="ant-collapse-content-box">
+                                                                                <div class="provided_information border border-[#d9d9d9] border-none">
+                                                                                    <div class="item py-2">
+                                                                                        <p>Father Name</p>
+                                                                                        <h5><?php echo $parent_info->father_name; ?></h5>
+                                                                                    </div>
+                                                                                    <div class="item py-2">
+                                                                                        <p>Father Date of Birth</p>
+                                                                                        <h5><?php echo $parent_info->father_date_of_birth; ?></h5>
+                                                                                    </div>
+                                                                                    <div class="item py-2">
+                                                                                        <p>Father Date of Death</p>
+                                                                                        <h5><?php echo $parent_info->father_date_of_death; ?></h5>
+                                                                                    </div>
+                                                                                    <div class="item py-2">
+                                                                                        <p>Father Present Address</p>
+                                                                                        <h5><?php echo $parent_info->father_address; ?></h5>
+                                                                                    </div>
+                                                                                    <div class="flex items-center justify-center gap-2 bg-[var(--color-lotion)]"></div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
-                                                                    <div class="ant-collapse-content ant-collapse-content-inactive ant-collapse-content-hidden" role="tabpanel" style="">
-                                                                        <div class="ant-collapse-content-box">
-                                                                            <div class="provided_information border border-[#d9d9d9] border-none">
-                                                                                <div class="item py-2">
-                                                                                    <p>Father Name</p>
-                                                                                    <h5>Hannan</h5>
+                                                                    <div class="ant-collapse-item">
+                                                                        <div class="ant-collapse-header" aria-expanded="false" aria-disabled="false" role="tab" tabindex="0">
+                                                                            <div class="ant-collapse-expand-icon"><span role="img" aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow"><svg viewBox="64 64 896 896" focusable="false" data-icon="right" width="1em" height="1em" fill="currentColor" aria-hidden="true">
+                                                                                        <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z"></path>
+                                                                                    </svg></span></div><span class="ant-collapse-header-text">Mother Information</span>
+                                                                        </div>
+                                                                        <div class="ant-collapse-content ant-collapse-content-inactive ant-collapse-content-hidden" role="tabpanel" style="">
+                                                                            <div class="ant-collapse-content-box">
+                                                                                <div class="provided_information border border-[#d9d9d9] border-none">
+                                                                                    <div class="item py-2">
+                                                                                        <p>Mother Name</p>
+                                                                                        <h5><?php echo $parent_info->mother_name; ?></h5>
+                                                                                    </div>
+                                                                                    <div class="item py-2">
+                                                                                        <p>Mother Date of Birth</p>
+                                                                                        <h5><?php echo $parent_info->mother_date_of_birth; ?></h5>
+                                                                                    </div>
+                                                                                    <div class="item py-2">
+                                                                                        <p>Mother Date of Death</p>
+                                                                                        <h5><?php echo $parent_info->mother_date_of_death; ?></h5>
+                                                                                    </div>
+                                                                                    <div class="item py-2">
+                                                                                        <p>Mother Present Address</p>
+                                                                                        <h5><?php echo $parent_info->mother_address; ?></h5>
+                                                                                    </div>
+                                                                                    <div class="flex items-center justify-center gap-2 bg-[var(--color-lotion)]"></div>
                                                                                 </div>
-                                                                                <div class="item py-2">
-                                                                                    <p>Father Date of Birth</p>
-                                                                                    <h5>2025-01-21</h5>
-                                                                                </div>
-                                                                                <div class="item py-2">
-                                                                                    <p>Father Date of Death</p>
-                                                                                    <h5>2025-01-20</h5>
-                                                                                </div>
-                                                                                <div class="item py-2">
-                                                                                    <p>Father Present Address</p>
-                                                                                    <h5>dssgs</h5>
-                                                                                </div>
-                                                                                <div class="flex items-center justify-center gap-2 bg-[var(--color-lotion)]"></div>
                                                                             </div>
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                                <div class="ant-collapse-item">
-                                                                    <div class="ant-collapse-header" aria-expanded="false" aria-disabled="false" role="tab" tabindex="0">
-                                                                        <div class="ant-collapse-expand-icon"><span role="img" aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow"><svg viewBox="64 64 896 896" focusable="false" data-icon="right" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                                                                                    <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z"></path>
-                                                                                </svg></span></div><span class="ant-collapse-header-text">Mother Information</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
+                                                            <?php } ?>
                                                         </div>
                                                     </div>
                                                     <div style="padding-left:10px;padding-right:10px"
                                                         class="ant-col ant-col-xs-24 ant-col-lg-12 ant-col-xl-8 css-1588u1j">
                                                         <div class="profile_info_area">
                                                             <div class="profile_add_card">
-                                                                <h2 class="title">Children Informations</h2>                                                                
-                                                                        <?php echo generate_add_button("child_add"); ?>
+                                                                <h2 class="title">Children Informations</h2>
+                                                                <?php echo generate_add_button("child_add"); ?>
                                                             </div>
-                                                            <div class="ant-collapse ant-collapse-icon-position-start css-1588u1j" role="tablist">
-                                                                <div class="ant-collapse-item">
-                                                                    <div class="ant-collapse-header" aria-expanded="false" aria-disabled="false" role="tab" tabindex="0">
-                                                                        <div class="ant-collapse-expand-icon"><span role="img" aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow"><svg viewBox="64 64 896 896" focusable="false" data-icon="right" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="">
-                                                                                    <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z"></path>
-                                                                                </svg></span></div><span class="ant-collapse-header-text">Social Studies</span>
-                                                                    </div>
-                                                                    <div class="ant-collapse-content ant-collapse-content-inactive ant-collapse-content-hidden" role="tabpanel" style="">
-                                                                        <div class="ant-collapse-content-box">
-                                                                            <div class="provided_information border border-[#d9d9d9] border-none">
-                                                                                <div class="item py-2">
-                                                                                    <p>Name</p>
-                                                                                    <h5>Social Studies</h5>
+                                                            <?php if ($children) { ?>
+                                                                <div class="ant-collapse ant-collapse-icon-position-start css-1588u1j" role="tablist">
+                                                                    <?php foreach ($children as $child) { ?>
+                                                                        <div class="ant-collapse-item">
+                                                                            <div class="ant-collapse-header" aria-expanded="false" aria-disabled="false" role="tab" tabindex="0">
+                                                                                <div class="ant-collapse-expand-icon"><span role="img" aria-label="collapsed" class="anticon anticon-right ant-collapse-arrow"><svg viewBox="64 64 896 896" focusable="false" data-icon="right" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="">
+                                                                                            <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z"></path>
+                                                                                        </svg></span></div><span class="ant-collapse-header-text"><?php echo esc_html($child->name ?? ''); ?></span>
+                                                                            </div>
+                                                                            <div class="ant-collapse-content ant-collapse-content-inactive ant-collapse-content-hidden" role="tabpanel" style="">
+                                                                                <div class="ant-collapse-content-box">
+                                                                                    <div class="provided_information border border-[#d9d9d9] border-none">
+                                                                                        <div class="item py-2">
+                                                                                            <p>Name</p>
+                                                                                            <h5><?php echo esc_html($child->name ?? ''); ?></h5>
+                                                                                        </div>
+                                                                                        <div class="item py-2">
+                                                                                            <p>Date Of Birth</p>
+                                                                                            <h5><?php echo esc_html($child->date_of_birth ?? ''); ?></h5>
+                                                                                        </div>
+                                                                                        <div class="item py-2">
+                                                                                            <p>Present Address</p>
+                                                                                            <h5><?php echo esc_html($child->present_address ?? ''); ?></h5>
+                                                                                        </div>
+                                                                                        <div class="flex items-center justify-center gap-2 bg-[var(--color-lotion)]"><button type="button" class="ant-btn css-1588u1j ant-btn-default" style="padding: 0px; border: none;"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024" class="text-[20px]" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                                                                                                    <path d="M360 184h-8c4.4 0 8-3.6 8-8v8h304v-8c0 4.4 3.6 8 8 8h-8v72h72v-80c0-35.3-28.7-64-64-64H352c-35.3 0-64 28.7-64 64v80h72v-72zm504 72H160c-17.7 0-32 14.3-32 32v32c0 4.4 3.6 8 8 8h60.4l24.7 523c1.6 34.1 29.8 61 63.9 61h454c34.2 0 62.3-26.8 63.9-61l24.7-523H888c4.4 0 8-3.6 8-8v-32c0-17.7-14.3-32-32-32zM731.3 840H292.7l-24.2-512h487l-24.2 512z"></path>
+                                                                                                </svg></button><button type="button" class="ant-btn css-1588u1j ant-btn-default" style="padding: 0px; border: none;"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" class="text-[20px]" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                                                                                                    <path d="M19.045 7.401c.378-.378.586-.88.586-1.414s-.208-1.036-.586-1.414l-1.586-1.586c-.378-.378-.88-.586-1.414-.586s-1.036.208-1.413.585L4 13.585V18h4.413L19.045 7.401zm-3-3 1.587 1.585-1.59 1.584-1.586-1.585 1.589-1.584zM6 16v-1.585l7.04-7.018 1.586 1.586L7.587 16H6zm-2 4h16v2H4z"></path>
+                                                                                                </svg></button></div>
+                                                                                    </div>
                                                                                 </div>
-                                                                                <div class="item py-2">
-                                                                                    <p>Date Of Birth</p>
-                                                                                    <h5>2025-01-28</h5>
-                                                                                </div>
-                                                                                <div class="item py-2">
-                                                                                    <p>Present Address</p>
-                                                                                    <h5>atgr</h5>
-                                                                                </div>
-                                                                                <div class="flex items-center justify-center gap-2 bg-[var(--color-lotion)]"><button type="button" class="ant-btn css-1588u1j ant-btn-default" style="padding: 0px; border: none;"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024" class="text-[20px]" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
-                                                                                            <path d="M360 184h-8c4.4 0 8-3.6 8-8v8h304v-8c0 4.4 3.6 8 8 8h-8v72h72v-80c0-35.3-28.7-64-64-64H352c-35.3 0-64 28.7-64 64v80h72v-72zm504 72H160c-17.7 0-32 14.3-32 32v32c0 4.4 3.6 8 8 8h60.4l24.7 523c1.6 34.1 29.8 61 63.9 61h454c34.2 0 62.3-26.8 63.9-61l24.7-523H888c4.4 0 8-3.6 8-8v-32c0-17.7-14.3-32-32-32zM731.3 840H292.7l-24.2-512h487l-24.2 512z"></path>
-                                                                                        </svg></button><button type="button" class="ant-btn css-1588u1j ant-btn-default" style="padding: 0px; border: none;"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" class="text-[20px]" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
-                                                                                            <path d="M19.045 7.401c.378-.378.586-.88.586-1.414s-.208-1.036-.586-1.414l-1.586-1.586c-.378-.378-.88-.586-1.414-.586s-1.036.208-1.413.585L4 13.585V18h4.413L19.045 7.401zm-3-3 1.587 1.585-1.59 1.584-1.586-1.585 1.589-1.584zM6 16v-1.585l7.04-7.018 1.586 1.586L7.587 16H6zm-2 4h16v2H4z"></path>
-                                                                                        </svg></button></div>
                                                                             </div>
                                                                         </div>
-                                                                    </div>
+                                                                    <?php } ?>
                                                                 </div>
-                                                            </div>
+                                                            <?php } ?>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -19704,57 +20054,58 @@ function up_user_profile_shortcode()
                                                         <div class="profile_info_area">
                                                             <div class="profile_add_card">
                                                                 <h2 class="title">My Occupations</h2>
-                                                                <div class="flex items-center gap-3 occupation_add"><?php echo generate_icon_button(); ?></div>
+                                                                <div class="flex items-center gap-3 occupation_add"><?php echo $occupation_info ? generate_icon_button() : generate_add_button(''); ?></div>
                                                             </div>
+                                                            <?php if ($occupation_info) { ?>
                                                             <div class="ant-collapse ant-collapse-icon-position-start css-1588u1j" role="tablist">
                                                                 <div class="ant-collapse-item ant-collapse-item-active">
                                                                     <div class="ant-collapse-header" aria-expanded="true" aria-disabled="false" role="tab" tabindex="0">
                                                                         <div class="ant-collapse-expand-icon"><span role="img" aria-label="expanded" class="anticon anticon-right ant-collapse-arrow"><svg viewBox="64 64 896 896" focusable="false" data-icon="right" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="transform: rotate(90deg);">
                                                                                     <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z"></path>
-                                                                                </svg></span></div><span class="ant-collapse-header-text">test</span>
+                                                                                </svg></span></div><span class="ant-collapse-header-text"><?php echo $occupation_info->company_name; ?></span>
                                                                     </div>
                                                                     <div class="ant-collapse-content ant-collapse-content-active" role="tabpanel">
                                                                         <div class="ant-collapse-content-box">
                                                                             <div class="provided_information border border-[#d9d9d9] border-none">
                                                                                 <div class="item py-2">
                                                                                     <p>Name Of Company</p>
-                                                                                    <h5>test</h5>
+                                                                                    <h5><?php echo $occupation_info->company_name; ?></h5>
                                                                                 </div>
                                                                                 <div class="item py-2">
                                                                                     <p>Type Of Company</p>
-                                                                                    <h5>Private Limited</h5>
+                                                                                    <h5><?php echo $occupation_info->type_of_company; ?></h5>
                                                                                 </div>
                                                                                 <div class="item py-2">
                                                                                     <p>Designation</p>
-                                                                                    <h5>sagas</h5>
+                                                                                    <h5><?php echo $occupation_info->designation; ?></h5>
                                                                                 </div>
                                                                                 <div class="item py-2">
                                                                                     <p>Joining Date</p>
-                                                                                    <h5>2025-01-30</h5>
+                                                                                    <h5><?php echo $occupation_info->joining_date; ?></h5>
                                                                                 </div>
                                                                                 <div class="item py-2">
                                                                                     <p>Company Start Date</p>
-                                                                                    <h5>2025-01-30</h5>
+                                                                                    <h5><?php echo $occupation_info->company_start_date; ?></h5>
                                                                                 </div>
                                                                                 <div class="item py-2">
                                                                                     <p>Responsibilities</p>
-                                                                                    <h5>saa</h5>
+                                                                                    <h5><?php echo $occupation_info->responsibilities; ?></h5>
                                                                                 </div>
                                                                                 <div class="item py-2">
                                                                                     <p>Company Email</p>
-                                                                                    <h5>afaf@gmail.com</h5>
+                                                                                    <h5><?php echo $occupation_info->company_email; ?>/h5>
                                                                                 </div>
                                                                                 <div class="item py-2">
                                                                                     <p>Company Phone Number</p>
-                                                                                    <h5>01863995432</h5>
+                                                                                    <h5><?php echo $occupation_info->company_phone; ?></h5>
                                                                                 </div>
                                                                                 <div class="item py-2">
                                                                                     <p>Business Sector</p>
-                                                                                    <h5>test</h5>
+                                                                                    <h5><?php echo $occupation_info->business_sector; ?></h5>
                                                                                 </div>
                                                                                 <div class="item py-2">
                                                                                     <p>Company Address</p>
-                                                                                    <h5>housing</h5>
+                                                                                    <h5><?php echo $occupation_info->company_address; ?></h5>
                                                                                 </div>
                                                                                 <div class="flex items-center justify-center gap-2 bg-[var(--color-lotion)]"></div>
                                                                             </div>
@@ -19762,6 +20113,7 @@ function up_user_profile_shortcode()
                                                                     </div>
                                                                 </div>
                                                             </div>
+                                                            <?php } ?>
                                                         </div>
                                                     </div>
                                                     <div style="padding-left:10px;padding-right:10px" class="ant-col ant-col-xs-24 ant-col-lg-12 ant-col-xl-8 css-1588u1j">
@@ -19809,7 +20161,7 @@ function up_user_profile_shortcode()
                                                             <div class="profile_info_area">
                                                                 <div class="profile_add_card">
                                                                     <h2 class="title">My Previous Travel History</h2>
-                                                                            <?php echo generate_add_button("travel_history_add"); ?>
+                                                                    <?php echo generate_add_button("travel_history_add"); ?>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -20230,7 +20582,8 @@ function up_user_profile_shortcode()
                                     <h2 class="mb-4 text-xl">Spouse Information</h2>
                                 </div>
                                 <form
-                                    class="ant-form ant-form-vertical ant-form-hide-required-mark ant-form-large css-1588u1j">
+                                    class="ant-form ant-form-vertical ant-form-hide-required-mark ant-form-large css-1588u1j" method="post" action="">
+                                    <?php wp_nonce_field('update_spouse_info', 'user_profile_spouse_nonce'); ?>
                                     <div class="ant-row css-1588u1j" style="margin-left: -10px; margin-right: -10px;">
                                         <div class="ant-col ant-col-xs-24 ant-col-md-12 ant-col-xl-12 css-1588u1j"
                                             style="padding-left: 10px; padding-right: 10px;">
@@ -20244,7 +20597,7 @@ function up_user_profile_shortcode()
                                                             <div class="ant-form-item-control-input-content"><input
                                                                     placeholder="Spouse Name" id="spouseName"
                                                                     class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded"
-                                                                    type="text" value=""></div>
+                                                                    type="text" value="<?php echo esc_html($spouse->name ?? ''); ?>" name="spouseName"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -20266,7 +20619,7 @@ function up_user_profile_shortcode()
                                                                             aria-invalid="false" autocomplete="off"
                                                                             size="12" id="spouseDateOfBirth"
                                                                             placeholder="Spouse Date of Birth"
-                                                                            value=""></div>
+                                                                            value="<?php echo esc_html($spouse->date_of_birth ?? ''); ?>" name="spouseDateOfBirth"></div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -20288,8 +20641,8 @@ function up_user_profile_shortcode()
                                                                     class="ant-picker ant-picker-large ant-picker-outlined css-1588u1j mt-2 w-full rounded">
                                                                     <div class="ant-picker-input"><input type="date"
                                                                             aria-invalid="false" autocomplete="off"
-                                                                            size="12" id="dateOfMarriage"
-                                                                            placeholder="Date of Marriage" value=""></div>
+                                                                            size="12" id="dateOfMarriage" name="dateOfMarriage"
+                                                                            placeholder="Date of Marriage" value="<?php echo esc_html($spouse->date_of_marriage ?? ''); ?>"></div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -20307,9 +20660,9 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
                                                             <div class="ant-form-item-control-input-content"><input
-                                                                    placeholder="Place of Marriage" id="placeOfMarriage"
+                                                                    placeholder="Place of Marriage" id="placeOfMarriage" name="placeOfMarriage"
                                                                     class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded"
-                                                                    type="text" value=""></div>
+                                                                    type="text" value="<?php echo esc_html($spouse->place_of_marriage ?? ''); ?>"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -20362,7 +20715,8 @@ function up_user_profile_shortcode()
                                     <h2 class="mb-4 text-xl">Sibling Information</h2>
                                 </div>
                                 <form
-                                    class="ant-form ant-form-vertical ant-form-hide-required-mark ant-form-large css-1588u1j">
+                                    class="ant-form ant-form-vertical ant-form-hide-required-mark ant-form-large css-1588u1j" method="post" action="">
+                                    <?php wp_nonce_field('update_sibling_info', 'user_profile_sibling_nonce'); ?>
                                     <div class="ant-row css-1588u1j" style="margin-left: -10px; margin-right: -10px;">
                                         <div class="ant-col ant-col-24 css-1588u1j"
                                             style="padding-left: 10px; padding-right: 10px;">
@@ -20379,12 +20733,12 @@ function up_user_profile_shortcode()
                                                                         class="ant-radio-wrapper ant-radio-wrapper-in-form-item css-1588u1j"><span
                                                                             class="ant-radio ant-wave-target"><input
                                                                                 class="ant-radio-input" type="radio"
-                                                                                value="Brother"><span
+                                                                                value="Brother" name="relationship"><span
                                                                                 class="ant-radio-inner"></span></span><span>Brother</span></label><label
                                                                         class="ant-radio-wrapper ant-radio-wrapper-in-form-item css-1588u1j"><span
                                                                             class="ant-radio ant-wave-target"><input
                                                                                 class="ant-radio-input" type="radio"
-                                                                                value="Sister"><span
+                                                                                value="Sister" name="relationship"><span
                                                                                 class="ant-radio-inner"></span></span><span>Sister</span></label>
                                                                 </div>
                                                             </div>
@@ -20402,7 +20756,7 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
                                                             <div class="ant-form-item-control-input-content"><input
-                                                                    placeholder="Sibling Name" id="name"
+                                                                    placeholder="Sibling Name" id="name" name="name"
                                                                     class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded"
                                                                     type="text" value=""></div>
                                                         </div>
@@ -20424,7 +20778,7 @@ function up_user_profile_shortcode()
                                                                     class="ant-picker ant-picker-large ant-picker-outlined css-1588u1j mt-2 w-full rounded">
                                                                     <div class="ant-picker-input"><input type="date"
                                                                             aria-invalid="false" autocomplete="off"
-                                                                            size="12" id="dateOfBirth"
+                                                                            size="12" id="dateOfBirth" name="dateOfBirth"
                                                                             placeholder="YYYY-MM-DD" value=""></div>
                                                                 </div>
                                                             </div>
@@ -20443,7 +20797,7 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
                                                             <div class="ant-form-item-control-input-content"><textarea
-                                                                    placeholder="Present Address" id="presentAddress"
+                                                                    placeholder="Present Address" id="presentAddress" name="presentAddress"
                                                                     class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded"></textarea>
                                                             </div>
                                                         </div>
@@ -20495,7 +20849,8 @@ function up_user_profile_shortcode()
                         <div class="ant-modal-body">
                             <div class="parents_info_from">
                                 <form
-                                    class="ant-form ant-form-vertical ant-form-hide-required-mark ant-form-large css-1588u1j">
+                                    class="ant-form ant-form-vertical ant-form-hide-required-mark ant-form-large css-1588u1j" method="post" action="">
+                                    <?php wp_nonce_field('update_parent_info', 'user_profile_parent_nonce'); ?>
                                     <div class="ant-row css-1588u1j" style="margin-left: -10px; margin-right: -10px;">
                                         <div class="ant-col ant-col-24 css-1588u1j"
                                             style="padding-left: 10px; padding-right: 10px;">
@@ -20511,9 +20866,9 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
                                                             <div class="ant-form-item-control-input-content"><input
-                                                                    placeholder="Father Name" id="fatherName"
+                                                                    placeholder="Father Name" id="fatherName" name="fatherName"
                                                                     class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded"
-                                                                    type="text" value="Hannan"></div>
+                                                                    type="text" value="<?php echo $parent_info->father_name ?? ''; ?>"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -20534,9 +20889,9 @@ function up_user_profile_shortcode()
                                                                     class="ant-picker ant-picker-large ant-picker-outlined css-1588u1j mt-2 w-full rounded">
                                                                     <div class="ant-picker-input"><input type="date"
                                                                             aria-invalid="false" autocomplete="off"
-                                                                            size="12" id="fatherDateOfBirth"
+                                                                            size="12" id="fatherDateOfBirth" name="fatherDateOfBirth"
                                                                             placeholder="YYYY-MM-DD"
-                                                                            value="2025-01-20"><span
+                                                                            value="<?php echo $parent_info->father_date_of_birth ?? ''; ?>"><span
                                                                             class="ant-picker-suffix"></div>
                                                                 </div>
                                                             </div>
@@ -20560,9 +20915,9 @@ function up_user_profile_shortcode()
                                                                     class="ant-picker ant-picker-large ant-picker-outlined css-1588u1j mt-2 w-full rounded">
                                                                     <div class="ant-picker-input"><input type="date"
                                                                             aria-invalid="false" autocomplete="off"
-                                                                            size="12" id="fatherDateOfDeath"
+                                                                            size="12" id="fatherDateOfDeath" name="fatherDateOfDeath"
                                                                             placeholder="YYYY-MM-DD"
-                                                                            value="2025-01-19"></div>
+                                                                            value="<?php echo $parent_info->father_date_of_death ?? ''; ?>"></div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -20581,8 +20936,8 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
                                                             <div class="ant-form-item-control-input-content"><textarea
-                                                                    placeholder="Present Address" id="fatherPresentAddress"
-                                                                    class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded">dssgs</textarea>
+                                                                    placeholder="Present Address" id="fatherPresentAddress" name="fatherPresentAddress"
+                                                                    class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded"><?php echo $parent_info->father_address ?? ''; ?></textarea>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -20603,9 +20958,9 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
                                                             <div class="ant-form-item-control-input-content"><input
-                                                                    placeholder="Mother Name" id="motherName"
+                                                                    placeholder="Mother Name" id="motherName" name="motherName"
                                                                     class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded"
-                                                                    type="text" value="hazera"></div>
+                                                                    type="text" value="<?php echo $parent_info->mother_name ?? ''; ?>"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -20626,9 +20981,9 @@ function up_user_profile_shortcode()
                                                                     class="ant-picker ant-picker-large ant-picker-outlined css-1588u1j mt-2 w-full rounded">
                                                                     <div class="ant-picker-input"><input type="date"
                                                                             aria-invalid="false" autocomplete="off"
-                                                                            size="12" id="motherDateOfBirth"
+                                                                            size="12" id="motherDateOfBirth" name="motherDateOfBirth"
                                                                             placeholder="YYYY-MM-DD"
-                                                                            value="2025-01-28"></div>
+                                                                            value="<?php echo $parent_info->mother_date_of_birth ?? ''; ?>"></div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -20651,9 +21006,9 @@ function up_user_profile_shortcode()
                                                                     class="ant-picker ant-picker-large ant-picker-outlined css-1588u1j mt-2 w-full rounded">
                                                                     <div class="ant-picker-input"><input type="date"
                                                                             aria-invalid="false" autocomplete="off"
-                                                                            size="12" id="motherDateOfDeath"
+                                                                            size="12" id="motherDateOfDeath" name="motherDateOfDeath"
                                                                             placeholder="YYYY-MM-DD"
-                                                                            value="2025-01-27"></div>
+                                                                            value="<?php echo $parent_info->mother_date_of_death ?? ''; ?>"></div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -20672,8 +21027,8 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
                                                             <div class="ant-form-item-control-input-content"><textarea
-                                                                    placeholder="Present Address" id="motherPresentAddress"
-                                                                    class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded">fae</textarea>
+                                                                    placeholder="Present Address" id="motherPresentAddress" name="motherPresentAddress"
+                                                                    class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded"><?php echo $parent_info->mother_address ?? ''; ?></textarea>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -20722,7 +21077,8 @@ function up_user_profile_shortcode()
                                         </path>
                                     </svg></span></span></button>
                         <div class="ant-modal-body">
-                            <form class="ant-form ant-form-vertical ant-form-hide-required-mark css-1588u1j">
+                            <form class="ant-form ant-form-vertical ant-form-hide-required-mark css-1588u1j" method="post" action="">
+                                <?php wp_nonce_field('update_children_info', 'user_profile_children_nonce'); ?>
                                 <div class="">
                                     <div class="text-center">
                                         <h2 class="mb-4 text-xl">Children Informations</h2>
@@ -20737,7 +21093,7 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
                                                             <div class="ant-form-item-control-input-content"><input
-                                                                    placeholder="Name" id="name"
+                                                                    placeholder="Name" id="name" name="name[]"
                                                                     class="ant-input css-1588u1j ant-input-outlined mt-2 rounded"
                                                                     type="text" value=""></div>
                                                         </div>
@@ -20759,7 +21115,7 @@ function up_user_profile_shortcode()
                                                                     class="ant-picker ant-picker-outlined css-1588u1j mt-2 w-full rounded">
                                                                     <div class="ant-picker-input"><input type="date"
                                                                             aria-invalid="false" autocomplete="off"
-                                                                            size="12" id="dateOfBirth"
+                                                                            size="12" id="dateOfBirth" name="dateOfBirth[]"
                                                                             placeholder="YYYY-MM-DD" value=""></div>
                                                                 </div>
                                                             </div>
@@ -20778,7 +21134,7 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
                                                             <div class="ant-form-item-control-input-content"><textarea
-                                                                    placeholder="Present Address" id="presentAddress"
+                                                                    placeholder="Present Address" id="presentAddress" name="presentAddress[]"
                                                                     class="ant-input css-1588u1j ant-input-outlined mt-2 rounded"
                                                                     style="resize: none;"></textarea></div>
                                                         </div>
@@ -20820,7 +21176,8 @@ function up_user_profile_shortcode()
                                         <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z"></path>
                                     </svg></span></span></button>
                         <div class="ant-modal-body">
-                            <form class="ant-form ant-form-vertical ant-form-hide-required-mark css-1588u1j">
+                            <form class="ant-form ant-form-vertical ant-form-hide-required-mark css-1588u1j" method="post" action="">
+                                <?php wp_nonce_field('update_occupations_info', 'user_profile_occupations_nonce'); ?>
                                 <div class="layout">
                                     <div class="ant-row css-1588u1j" style="margin-left: -10px; margin-right: -10px;">
                                         <div class="ant-col ant-col-xs-24 ant-col-md-12 ant-col-xl-12 css-1588u1j" style="padding-left: 10px; padding-right: 10px;">
@@ -20829,7 +21186,7 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-label css-1588u1j"><label for="nameOfCompany" class="" title="Name of Company">Name of Company</label></div>
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
-                                                            <div class="ant-form-item-control-input-content"><input placeholder="Client’s Company Name" id="nameOfCompany" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="test"></div>
+                                                            <div class="ant-form-item-control-input-content"><input placeholder="Client’s Company Name" id="nameOfCompany" name="nameOfCompany" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="<?php echo $occupation_info->company_name ?? '';?>"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -20843,9 +21200,14 @@ function up_user_profile_shortcode()
                                                         <div class="ant-form-item-control-input">
                                                             <div class="ant-form-item-control-input-content">
                                                                 <div class="ant-select ant-select-lg ant-select-outlined ant-select-in-form-item mt-2 rounded css-1588u1j ant-select-single ant-select-show-arrow">
-                                                                    <div class="ant-select-selector"><span class="ant-select-selection-search"><input type="search" id="typeOfCompany" autocomplete="off" class="ant-select-selection-search-input" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-owns="typeOfCompany_list" aria-autocomplete="list" aria-controls="typeOfCompany_list" readonly="" unselectable="on" value="" style="opacity: 0;"></span><span class="ant-select-selection-item" title="Private Limited">Private Limited</span></div><span class="ant-select-arrow" unselectable="on" aria-hidden="true" style="user-select: none;"><span role="img" aria-label="down" class="anticon anticon-down ant-select-suffix"><svg viewBox="64 64 896 896" focusable="false" data-icon="down" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                                                                                <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z"></path>
-                                                                            </svg></span></span>
+                                                                    
+                                                                        <select name="typeOfCompany" class="ant-select-selection-search ant-select-selector" id="typeOfCompany" value="<?php echo $occupation_info->type_of_company ?? '';?>">
+                                                                            <option value="Government" <?php echo  $occupation_info->type_of_company === "Government"?'selected':''?>>Government</option>
+                                                                            <option value="Private Limited" <?php echo  $occupation_info->type_of_company === "Private Limited"?'selected':''?>>Private Limited</option>
+                                                                            <option value="Public Limited" <?php echo  $occupation_info->type_of_company === "Public Limited"?'selected':''?>>Public Limited</option>
+                                                                            <option value="Foreign or Multinational Com" <?php echo  $occupation_info->type_of_company === "Foreign or Multinational Com"?'selected':''?>>Foreign or Multinational Com</option>
+                                                                        </select>
+                                                                   
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -20859,7 +21221,7 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-label css-1588u1j"><label for="businessSectorBriefDescription" class="" title="Business Sector ">Business Sector </label></div>
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
-                                                            <div class="ant-form-item-control-input-content"><input placeholder="Business Sector" id="businessSectorBriefDescription" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="test"></div>
+                                                            <div class="ant-form-item-control-input-content"><input placeholder="Business Sector" id="businessSectorBriefDescription" name="businessSectorBriefDescription" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="<?php echo $occupation_info->business_sector ?? '';?>"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -20871,7 +21233,7 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-label css-1588u1j"><label for="companyAddress" class="" title="Company Address">Company Address</label></div>
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
-                                                            <div class="ant-form-item-control-input-content"><input placeholder="Company address" id="companyAddress" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="housing"></div>
+                                                            <div class="ant-form-item-control-input-content"><input placeholder="Company address" id="companyAddress" name="companyAddress" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="<?php echo $occupation_info->company_address ?? '';?>"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -20883,7 +21245,7 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-label css-1588u1j"><label for="designation" class="" title="Designation">Designation</label></div>
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
-                                                            <div class="ant-form-item-control-input-content"><input placeholder="Designation" id="designation" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="sagas"></div>
+                                                            <div class="ant-form-item-control-input-content"><input placeholder="Designation" id="designation" name="designation" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="<?php echo $occupation_info->designation ?? '';?>"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -20897,11 +21259,7 @@ function up_user_profile_shortcode()
                                                         <div class="ant-form-item-control-input">
                                                             <div class="ant-form-item-control-input-content">
                                                                 <div class="ant-picker ant-picker-large ant-picker-outlined css-1588u1j mt-2 w-full">
-                                                                    <div class="ant-picker-input"><input aria-invalid="false" autocomplete="off" size="12" id="joiningDate" placeholder="YYYY-MM-DD" value="2025-01-29"><span class="ant-picker-suffix"><span role="img" aria-label="calendar" class="anticon anticon-calendar"><svg viewBox="64 64 896 896" focusable="false" data-icon="calendar" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                                                                                    <path d="M880 184H712v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H384v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H144c-17.7 0-32 14.3-32 32v664c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V216c0-17.7-14.3-32-32-32zm-40 656H184V460h656v380zM184 392V256h128v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h256v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h128v136H184z"></path>
-                                                                                </svg></span></span><span class="ant-picker-clear" role="button"><span role="img" aria-label="close-circle" class="anticon anticon-close-circle"><svg fill-rule="evenodd" viewBox="64 64 896 896" focusable="false" data-icon="close-circle" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                                                                                    <path d="M512 64c247.4 0 448 200.6 448 448S759.4 960 512 960 64 759.4 64 512 264.6 64 512 64zm127.98 274.82h-.04l-.08.06L512 466.75 384.14 338.88c-.04-.05-.06-.06-.08-.06a.12.12 0 00-.07 0c-.03 0-.05.01-.09.05l-45.02 45.02a.2.2 0 00-.05.09.12.12 0 000 .07v.02a.27.27 0 00.06.06L466.75 512 338.88 639.86c-.05.04-.06.06-.06.08a.12.12 0 000 .07c0 .03.01.05.05.09l45.02 45.02a.2.2 0 00.09.05.12.12 0 00.07 0c.02 0 .04-.01.08-.05L512 557.25l127.86 127.87c.04.04.06.05.08.05a.12.12 0 00.07 0c.03 0 .05-.01.09-.05l45.02-45.02a.2.2 0 00.05-.09.12.12 0 000-.07v-.02a.27.27 0 00-.05-.06L557.25 512l127.87-127.86c.04-.04.05-.06.05-.08a.12.12 0 000-.07c0-.03-.01-.05-.05-.09l-45.02-45.02a.2.2 0 00-.09-.05.12.12 0 00-.07 0z"></path>
-                                                                                </svg></span></span></div>
+                                                                    <div class="ant-picker-input"><input type="date" aria-invalid="false" autocomplete="off" size="12" id="joiningDate" name="joiningDate" placeholder="YYYY-MM-DD" value="<?php echo $occupation_info->joining_date ?? '';?>"></div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -20916,12 +21274,9 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
                                                             <div class="ant-form-item-control-input-content">
-                                                                <div class="ant-picker ant-picker-large ant-picker-outlined css-1588u1j mt-2 w-full">
-                                                                    <div class="ant-picker-input"><input aria-invalid="false" autocomplete="off" size="12" id="companyStartDate" placeholder="YYYY-MM-DD" value="2025-01-29"><span class="ant-picker-suffix"><span role="img" aria-label="calendar" class="anticon anticon-calendar"><svg viewBox="64 64 896 896" focusable="false" data-icon="calendar" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                                                                                    <path d="M880 184H712v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H384v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H144c-17.7 0-32 14.3-32 32v664c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V216c0-17.7-14.3-32-32-32zm-40 656H184V460h656v380zM184 392V256h128v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h256v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h128v136H184z"></path>
-                                                                                </svg></span></span><span class="ant-picker-clear" role="button"><span role="img" aria-label="close-circle" class="anticon anticon-close-circle"><svg fill-rule="evenodd" viewBox="64 64 896 896" focusable="false" data-icon="close-circle" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                                                                                    <path d="M512 64c247.4 0 448 200.6 448 448S759.4 960 512 960 64 759.4 64 512 264.6 64 512 64zm127.98 274.82h-.04l-.08.06L512 466.75 384.14 338.88c-.04-.05-.06-.06-.08-.06a.12.12 0 00-.07 0c-.03 0-.05.01-.09.05l-45.02 45.02a.2.2 0 00-.05.09.12.12 0 000 .07v.02a.27.27 0 00.06.06L466.75 512 338.88 639.86c-.05.04-.06.06-.06.08a.12.12 0 000 .07c0 .03.01.05.05.09l45.02 45.02a.2.2 0 00.09.05.12.12 0 00.07 0c.02 0 .04-.01.08-.05L512 557.25l127.86 127.87c.04.04.06.05.08.05a.12.12 0 00.07 0c.03 0 .05-.01.09-.05l45.02-45.02a.2.2 0 00.05-.09.12.12 0 000-.07v-.02a.27.27 0 00-.05-.06L557.25 512l127.87-127.86c.04-.04.05-.06.05-.08a.12.12 0 000-.07c0-.03-.01-.05-.05-.09l-45.02-45.02a.2.2 0 00-.09-.05.12.12 0 00-.07 0z"></path>
-                                                                                </svg></span></span></div>
+                                                                <div class="ant-picker ant-picker-large ant-picker-outlined css-1588u1j mt-2 w-full"> 
+                                                                    <div class="ant-picker-input"><input type="date" aria-invalid="false" autocomplete="off" size="12" id="companyStartDate" name="companyStartDate" placeholder="YYYY-MM-DD" value="<?php echo $occupation_info->company_start_date ?? '';?>">
+                                                                </div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -20934,8 +21289,8 @@ function up_user_profile_shortcode()
                                                 <div class="ant-row ant-form-item-row css-1588u1j">
                                                     <div class="ant-col ant-form-item-label css-1588u1j"><label for="responsibilities" class="" title="Responsibilities in Work Role">Responsibilities in Work Role</label></div>
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
-                                                        <div class="ant-form-item-control-input">
-                                                            <div class="ant-form-item-control-input-content"><input placeholder="Responsibilities" id="responsibilities" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="saa"></div>
+                                                        <div class="ant-form-item-control-input"> 
+                                                            <div class="ant-form-item-control-input-content"><input placeholder="Responsibilities" id="responsibilities" name="responsibilities" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="<?php echo $occupation_info->responsibilities ?? '';?>"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -20947,7 +21302,7 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-label css-1588u1j"><label for="companyEmail" class="" title="Company Email ID">Company Email ID</label></div>
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
-                                                            <div class="ant-form-item-control-input-content"><input placeholder="company email" id="companyEmail" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="afaf@gmail.com"></div>
+                                                            <div class="ant-form-item-control-input-content"><input placeholder="company email" id="companyEmail" name="companyEmail" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="<?php echo $occupation_info->company_email ?? '';?>"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -20959,7 +21314,7 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-label css-1588u1j"><label for="companyPhoneNumber" class="" title="Company Phone number">Company Phone number</label></div>
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
-                                                            <div class="ant-form-item-control-input-content"><input placeholder="Company Phone Number" id="companyPhoneNumber" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="01863995432"></div>
+                                                            <div class="ant-form-item-control-input-content"><input placeholder="Company Phone Number" id="companyPhoneNumber" name="companyPhoneNumber" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="<?php echo $occupation_info->company_phone ?? '';?>"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -21606,10 +21961,114 @@ function generate_add_button($addbtn_class)
             </div>';
 }
 
-function generate_icon_button($dynamic_class='') {
+function generate_icon_button($dynamic_class = '')
+{
     return '<button type="button" class="ant-btn css-1588u1j ant-btn-default rounded ' . esc_attr($dynamic_class) . '" style="padding: 0px;">
                 <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" class="text-[24px]" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
                                                                             <path d="M19.045 7.401c.378-.378.586-.88.586-1.414s-.208-1.036-.586-1.414l-1.586-1.586c-.378-.378-.88-.586-1.414-.586s-1.036.208-1.413.585L4 13.585V18h4.413L19.045 7.401zm-3-3 1.587 1.585-1.59 1.584-1.586-1.585 1.589-1.584zM6 16v-1.585l7.04-7.018 1.586 1.586L7.587 16H6zm-2 4h16v2H4z"></path>
                                                                         </svg>
             </button>';
+}
+
+function get_spouse_info_for_current_user()
+{
+    global $wpdb;
+
+    // Get the current logged-in user ID
+    $user_id = get_current_user_id();
+
+    if (!$user_id) {
+        return false; // No user is logged in
+    }
+
+    // Define the spouse info table
+    $table_name = $wpdb->prefix . 'spouse_info';
+
+    // Fetch spouse information
+    $spouse_info = $wpdb->get_row($wpdb->prepare(
+        "SELECT name, date_of_birth, date_of_marriage, place_of_marriage FROM $table_name WHERE user_id = %d",
+        $user_id
+    ));
+
+    return $spouse_info;
+}
+function get_sibling_info_for_current_user()
+{
+    global $wpdb;
+
+    $user_id = get_current_user_id();
+
+    if (!$user_id) {
+        return [];
+    }
+
+    $table_name = $wpdb->prefix . 'siblings_info';
+
+    // Fetch all siblings for the logged-in user
+    $siblings = $wpdb->get_results($wpdb->prepare(
+        "SELECT sibling_id, relationship, name, date_of_birth, present_address FROM $table_name WHERE user_id = %d",
+        $user_id
+    ));
+
+    return $siblings;
+}
+
+function get_parent_info($user_id = null)
+{
+    global $wpdb;
+
+    // If no user_id is provided, use the current logged-in user's ID
+    if (!$user_id) {
+        $user_id = get_current_user_id();
+    }
+
+    if (!$user_id) {
+        return null; // No user is logged in
+    }
+
+    // Table name
+    $table_name = $wpdb->prefix . 'parents_info';
+
+    // Query to get parent's information for the specific user
+    $parent_info = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM $table_name WHERE user_id = %d",
+        $user_id
+    ));
+
+    // If no record is found, return null
+    if (!$parent_info) {
+        return null;
+    }
+
+    return $parent_info;
+}
+
+function get_children_info($user_id)
+{
+    global $wpdb;
+
+    // Query to get children's information for the current user
+    $children = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}children_info WHERE user_id = %d",
+            $user_id
+        )
+    );
+
+    return $children;
+}
+function get_existing_occupation_info($user_id) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'occupation_info';
+
+    // Get occupation info for the logged-in user
+    $occupation_info = $wpdb->get_row(
+        $wpdb->prepare("SELECT * FROM $table_name WHERE user_id = %d", $user_id)
+    );
+
+    if ($occupation_info) {
+        return $occupation_info;
+    } else {
+        return false; // No occupation info found
+    }
 }
