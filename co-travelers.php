@@ -8,21 +8,75 @@ function ct_display_co_travelers_shortcode()
         return '<p>You need to be logged in to view your co-travelers.</p>';
     }
     global $wpdb;
+
     $user_id = get_current_user_id();
 
+    // Check if the user_id from GET is a co-traveler of the current user
+    $co_traveler_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : '';
+    
+    if($co_traveler_id!==0){
+        // Perform a database query to check the co-traveler relationship
+        $query = $wpdb->prepare(
+            "SELECT COUNT(*) FROM wp_co_travelers_info WHERE co_traveler_id = %d AND user_id = %d",
+            $co_traveler_id,
+            $user_id
+        );
+            
+        $count = $wpdb->get_var($query);
+        }else{
+            $count = 0;
+        }
+
+    
+    if (isset($_GET['user_id'])) {
+        if ( current_user_can( 'administrator' ) ) {
+            $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
+        }
+        elseif($count > 0){
+            $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
+        }  
+    }
+
     // handle form submission
+
     if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['firstName'])) {
         global $wpdb;
+
         // Sanitize input
         $first_name = sanitize_text_field($_POST['firstName']);
         $last_name = sanitize_text_field($_POST['lastName']);
         $email = sanitize_email($_POST['email']);
         $phone_number = sanitize_text_field($_POST['phoneNumber']);
         $relationship = sanitize_text_field($_POST['relationship']);
-        $user_id = get_current_user_id(); // Assuming you want to link to the current user
 
+        // Generate a random password
+        $password = wp_generate_password();
+
+        // Check if the user already exists
+        if (email_exists($email)) {
+            $co_traveler_id = email_exists($email);
+        } else {
+            // Create new user
+            $user_data = [
+                'user_login' => $email,
+                'user_email' => $email,
+                'first_name' => $first_name,
+                'last_name' => $last_name,
+                'user_pass' => $password,
+                'role' => 'subscriber'
+            ];
+            $co_traveler_id = wp_insert_user($user_data);
+
+            // Check if user creation was successful
+            if (is_wp_error($co_traveler_id)) {
+                echo '<div class="notice notice-error">Error creating user: ' . $co_traveler_id->get_error_message() . '</div>';
+                return;
+            }
+        }
+        $user_id = get_current_user_id();
         // Prepare data for insertion
         $data = [
+            'co_traveler_id' => $co_traveler_id, // Store new user ID
             'user_id' => $user_id,
             'first_name' => $first_name,
             'last_name' => $last_name,
@@ -36,15 +90,15 @@ function ct_display_co_travelers_shortcode()
 
         // Check for errors
         if ($inserted === false) {
-            // Output the last error message
             echo '<div class="notice notice-error">Error saving Co-Traveler information: ' . $wpdb->last_error . '</div>';
         } else {
             echo '<div class="notice notice-success">Co-Traveler information saved successfully!</div>';
         }
     }
 
+
     $co_travelers = $wpdb->get_results(
-        $wpdb->prepare("SELECT first_name, last_name, email, relationship FROM {$wpdb->prefix}co_travelers_info WHERE user_id = %d", $user_id)
+        $wpdb->prepare("SELECT * FROM {$wpdb->prefix}co_travelers_info WHERE user_id = %d", $user_id)
     );
 
 
@@ -4454,7 +4508,7 @@ function ct_display_co_travelers_shortcode()
                                                                                                             foreach ($co_travelers as $traveler) {
                                                                                                         ?>
                                                 <div class="ant-col ant-col-xs-24 ant-col-sm-12 ant-col-md-8 ant-col-lg-6 ant-col-xl-4 css-1588u1j" style="padding-left: 10px; padding-right: 10px;">
-                                                    <div class="family_member_card cursor-pointer">
+                                                    <a href="/user/profile/?user_id=<?php echo $traveler->co_traveler_id; ?>" class="family_member_card cursor-pointer">
                                                         <div class="delete_edit_icon cursor-pointer">
                                                             <svg stroke="currentColor" fill="currentColor" stroke-width="0"
                                                                 viewBox="0 0 24 24" class="edit" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
@@ -4471,7 +4525,7 @@ function ct_display_co_travelers_shortcode()
                                                             <h5><?php echo esc_html($traveler->relationship); ?></h5>
                                                             <h6><?php echo esc_html($traveler->email); ?></h6>
                                                         </div>
-                                                    </div>
+                                                    </a>
                                                 </div>
                                         <?php
                                                                                                             }
@@ -4689,10 +4743,10 @@ function ct_display_co_travelers_shortcode()
         </div>
         </main>
         </div>
-        
-        
-        
-        
+
+
+
+
         <p aria-live="assertive" id="__next-route-announcer__" role="alert"
             style="border: 0px; clip: rect(0px, 0px, 0px, 0px); height: 1px; margin: -1px; overflow: hidden; padding: 0px; position: absolute; top: 0px; width: 1px; white-space: nowrap; overflow-wrap: normal;">
         </p>
@@ -4700,9 +4754,9 @@ function ct_display_co_travelers_shortcode()
             src="about:blank"
             style="display: none !important; width: 1px !important; height: 1px !important; opacity: 0 !important; pointer-events: none !important;"></iframe>
         <div id="veepn-guard-alert"></div>
-        
+
         <div id="veepn-breach-alert"></div>
-        
+
 
         <script>
             jQuery(document).ready(function($) {

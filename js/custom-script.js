@@ -5,6 +5,7 @@ jQuery(document).ready(function($) {
         
         const nid = $('#nid').val();
         const address = $('#address').val();
+        const user_id = $('#user_id').val();
 
         // AJAX request to save data
         $.ajax({
@@ -14,12 +15,14 @@ jQuery(document).ready(function($) {
                 action: 'save_user_info',
                 nid: nid,
                 address: address,
+                user_id: user_id,
                 // nonce: your_nonce // Add nonce if you're using it
             },
             success: function(response) {
                 console.log(response); // Log response for debugging
                 if (response.success) {
                     alert(response.data); // Show success message
+                    location.reload(); // Optionally, reset the form or close the modal
                     // Optionally, reset the form or close the modal
                 } else {
                     alert('Failed to save data.');

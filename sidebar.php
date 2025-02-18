@@ -81,6 +81,9 @@
 
     }
 </style>
+<?php $user_id_in_url = isset($_GET['user_id']) ? intval($_GET['user_id']) : ''; 
+      $url_with_user_id = $user_id_in_url ? '?user_id=' . $user_id_in_url : '';
+?>
 <aside id="rsidebar" class="sidebar ant-layout-sider ant-layout-sider-light ant-layout-sider-has-trigger sidebar_menu_wrapper"
     style="box-shadow: rgba(8, 21, 66, 0.05) 0px 10px 20px; border-right: 1px solid rgb(236, 243, 250); overflow: auto; height: 100vh; position: fixed; top: 100px; padding: 0px 10px; left: 0px; z-index: 9; background: rgb(243, 243, 252); flex: 0 0 200px; max-width: 240px; min-width: 240px; width: 240px;">
     <div class="ant-layout-sider-children">
@@ -96,7 +99,7 @@
                         d="M10 3H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1zM9 9H5V5h4v4zm11-6h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1zm-1 6h-4V5h4v4zm-9 4H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-6a1 1 0 0 0-1-1zm-1 6H5v-4h4v4zm8-6c-2.206 0-4 1.794-4 4s1.794 4 4 4 4-1.794 4-4-1.794-4-4-4zm0 6c-1.103 0-2-.897-2-2s.897-2 2-2 2 .897 2 2-.897 2-2 2z">
                     </path>
                 </svg><span class="ant-menu-title-content"><a class="inline-block custom_link"
-                        href="/user/">Overview</a></span></li>
+                        href="/user/<?php echo $url_with_user_id;?>">Overview</a></span></li>
             <li class="ant-menu-item" role="menuitem" tabindex="-1"
                 data-menu-id="rc-menu-uuid-94723-1-/user/profile/" style="padding-left: 24px;"><svg
                     stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024"
@@ -106,7 +109,7 @@
                         d="M858.5 763.6a374 374 0 0 0-80.6-119.5 375.63 375.63 0 0 0-119.5-80.6c-.4-.2-.8-.3-1.2-.5C719.5 518 760 444.7 760 362c0-137-111-248-248-248S264 225 264 362c0 82.7 40.5 156 102.8 201.1-.4.2-.8.3-1.2.5-44.8 18.9-85 46-119.5 80.6a375.63 375.63 0 0 0-80.6 119.5A371.7 371.7 0 0 0 136 901.8a8 8 0 0 0 8 8.2h60c4.4 0 7.9-3.5 8-7.8 2-77.2 33-149.5 87.8-204.3 56.7-56.7 132-87.9 212.2-87.9s155.5 31.2 212.2 87.9C779 752.7 810 825 812 902.2c.1 4.4 3.6 7.8 8 7.8h60a8 8 0 0 0 8-8.2c-1-47.8-10.9-94.3-29.5-138.2zM512 534c-45.9 0-89.1-17.9-121.6-50.4S340 407.9 340 362c0-45.9 17.9-89.1 50.4-121.6S466.1 190 512 190s89.1 17.9 121.6 50.4S684 316.1 684 362c0 45.9-17.9 89.1-50.4 121.6S557.9 534 512 534z">
                     </path>
                 </svg><span class="ant-menu-title-content"><a class="inline-block custom_link"
-                        href="/user/profile/">My Profile</a></span></li>
+                        href="/user/profile/<?php echo $url_with_user_id;?>">My Profile</a></span></li>
             <li class="ant-menu-item" role="menuitem" tabindex="-1"
                 data-menu-id="rc-menu-uuid-94723-1-/user/applied-visa/" style="padding-left: 24px;"><svg
                     stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24"
@@ -116,7 +119,7 @@
                         d="M20 2C20.5523 2 21 2.44772 21 3V21C21 21.5523 20.5523 22 20 22H4C3.44772 22 3 21.5523 3 21V3C3 2.44772 3.44772 2 4 2H20ZM19 4H5V20H19V4ZM16 16V18H8V16H16ZM12 6C14.2091 6 16 7.79086 16 10C16 12.2091 14.2091 14 12 14C9.79086 14 8 12.2091 8 10C8 7.79086 9.79086 6 12 6ZM12 8C10.8954 8 10 8.89543 10 10C10 11.1046 10.8954 12 12 12C13.1046 12 14 11.1046 14 10C14 8.89543 13.1046 8 12 8Z">
                     </path>
                 </svg><span class="ant-menu-title-content"><a class="inline-block custom_link"
-                        href="/user/applied-visa/">My Applied Visa</a></span></li>
+                        href="/user/applied-visa/<?php echo $url_with_user_id;?>">My Applied Visa</a></span></li>
             <li class="ant-menu-item" role="menuitem" tabindex="-1"
                 data-menu-id="rc-menu-uuid-94723-1-/user/transactions/" style="padding-left: 24px;"><svg
                     stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24"
@@ -129,7 +132,7 @@
                         d="M20 7V5c0-1.103-.897-2-2-2H5C3.346 3 2 4.346 2 6v12c0 2.201 1.794 3 3 3h15c1.103 0 2-.897 2-2V9c0-1.103-.897-2-2-2zM5 5h13v2H5a1.001 1.001 0 0 1 0-2zm15 14H5.012C4.55 18.988 4 18.805 4 18V8.815c.314.113.647.185 1 .185h15v10z">
                     </path>
                 </svg><span class="ant-menu-title-content"><a class="inline-block custom_link"
-                        href="/user/transactions/">My Transactions</a></span></li>
+                        href="/user/transactions/<?php echo $url_with_user_id;?>">My Transactions</a></span></li>
             <li class="ant-menu-item" role="menuitem" tabindex="-1"
                 data-menu-id="rc-menu-uuid-94723-1-/user/co-travelers/" style="padding-left: 24px;"><svg
                     stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24"
@@ -140,7 +143,7 @@
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
                     <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
                 </svg><span class="ant-menu-title-content"><a class="inline-block custom_link"
-                        href="/user/co-travelers/">My Co-Travelers</a></span></li>
+                        href="/user/co-travelers/<?php echo $url_with_user_id;?>">My Co-Travelers</a></span></li>
             <li class="ant-menu-item" role="menuitem" tabindex="-1"
                 data-menu-id="rc-menu-uuid-94723-1-/user/documents/" style="padding-left: 24px;"><svg
                     stroke="currentColor" fill="none" stroke-width="0" viewBox="0 0 24 24"
@@ -153,7 +156,7 @@
                         d="M6 2C4.34315 2 3 3.34315 3 5V19C3 20.6569 4.34315 22 6 22H18C19.6569 22 21 20.6569 21 19V9C21 5.13401 17.866 2 14 2H6ZM6 4H13V9H19V19C19 19.5523 18.5523 20 18 20H6C5.44772 20 5 19.5523 5 19V5C5 4.44772 5.44772 4 6 4ZM15 4.10002C16.6113 4.4271 17.9413 5.52906 18.584 7H15V4.10002Z"
                         fill="currentColor"></path>
                 </svg><span class="ant-menu-title-content"><a class="inline-block custom_link"
-                        href="/user/documents/">My Documents</a></span></li>
+                        href="/user/documents/<?php echo $url_with_user_id;?>">My Documents</a></span></li>
             <li class="ant-menu-item" role="menuitem" tabindex="-1"
                 data-menu-id="rc-menu-uuid-94723-1-/user/appointment/" style="padding-left: 24px;"><svg
                     stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24"
@@ -165,7 +168,7 @@
                         d="M5 22h14c1.103 0 2-.897 2-2V6c0-1.103-.897-2-2-2h-2V2h-2v2H9V2H7v2H5c-1.103 0-2 .897-2 2v14c0 1.103.897 2 2 2zM19 8l.001 12H5V8h14z">
                     </path>
                 </svg><span class="ant-menu-title-content"><a class="inline-block custom_link"
-                        href="/user/appointment/">My Appointment</a></span></li>
+                        href="/user/appointment/<?php echo $url_with_user_id;?>">My Appointment</a></span></li>
             <li class="ant-menu-item" role="menuitem" tabindex="-1"
                 data-menu-id="rc-menu-uuid-94723-1-/user/checklist/" style="padding-left: 24px;"><svg
                     stroke="currentColor" fill="none" stroke-width="0" viewBox="0 0 24 24"
@@ -175,7 +178,7 @@
                         d="M20 4H4C3.44771 4 3 4.44772 3 5V19C3 19.5523 3.44772 20 4 20H20C20.5523 20 21 19.5523 21 19V5C21 4.44771 20.5523 4 20 4ZM4 2C2.34315 2 1 3.34315 1 5V19C1 20.6569 2.34315 22 4 22H20C21.6569 22 23 20.6569 23 19V5C23 3.34315 21.6569 2 20 2H4ZM6 7H8V9H6V7ZM11 7C10.4477 7 10 7.44772 10 8C10 8.55228 10.4477 9 11 9H17C17.5523 9 18 8.55228 18 8C18 7.44772 17.5523 7 17 7H11ZM8 11H6V13H8V11ZM10 12C10 11.4477 10.4477 11 11 11H17C17.5523 11 18 11.4477 18 12C18 12.5523 17.5523 13 17 13H11C10.4477 13 10 12.5523 10 12ZM8 15H6V17H8V15ZM10 16C10 15.4477 10.4477 15 11 15H17C17.5523 15 18 15.4477 18 16C18 16.5523 17.5523 17 17 17H11C10.4477 17 10 16.5523 10 16Z"
                         fill="currentColor"></path>
                 </svg><span class="ant-menu-title-content"><a class="inline-block custom_link"
-                        href="/user/checklist/">My Checklist</a></span></li>
+                        href="/user/checklist/<?php echo $url_with_user_id;?>">My Checklist</a></span></li>
         </ul>
         <div aria-hidden="true" style="display: none;"></div>
         <div class="user_menu">
@@ -183,7 +186,18 @@
                 <?php
                 if (is_user_logged_in()) {
                     $current_user = wp_get_current_user();
-                    echo get_avatar($current_user->ID, 96); // Avatar size
+                    
+                    // Get the user's custom profile image URL from user meta (assuming it's stored under 'profile_image')
+                    $profile_image_url = get_user_meta($user_id_in_url!==''? $user_id_in_url : $current_user->ID, 'profile_image', true);
+                    
+                    // Check if the user has a custom profile image
+                    if ($profile_image_url) {
+                        // If the user has a custom profile image, display it
+                        echo '<img src="' . esc_url($profile_image_url) . '" alt="User Avatar" class="user-avatar" width="96" height="96">';
+                    } else {
+                        // If no custom image, display the default avatar
+                        echo get_avatar($user_id_in_url!==''? $user_id_in_url : $current_user->ID, 96); // Default Gravatar fallback
+                    }
                 } else {
                     echo '<img src="https://secure.gravatar.com/avatar/729ae85bf62b9917e93538db2f2688ca?s=96&d=mm&r=g" alt="Default Avatar" width="96" height="96" />'; // Optional default avatar
                 }
@@ -193,7 +207,7 @@
                 <p class="name"><?php
                                 if (is_user_logged_in()) {
                                     // Display first name and last name
-                                    echo esc_html($current_user->first_name . ' ' . $current_user->last_name);
+                                    echo esc_html(get_user_meta($user_id_in_url!==''? $user_id_in_url : $current_user->ID, 'first_name', true) . ' ' . get_user_meta($user_id_in_url!==''? $user_id_in_url : $current_user->ID, 'last_name', true));
                                 } else {
                                     echo 'Guest User';
                                 }
@@ -242,10 +256,13 @@
             </svg></span></div>
 </aside>
 
+
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Get the current URL path
-        const currentPath = window.location.pathname;
+        
+        const currentPath = window.location.pathname + window.location.search;
+        console.log(currentPath);
 
         // Select all menu items
         const menuItems = document.querySelectorAll('.ant-menu-item');

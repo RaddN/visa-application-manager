@@ -8,21 +8,49 @@ function up_handle_user_profile_update()
     }
 
     global $wpdb;
+
     $user_id = get_current_user_id();
+
+    // Check if the user_id from GET is a co-traveler of the current user
+    $co_traveler_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : '';
+    
+    if($co_traveler_id!==0){
+        // Perform a database query to check the co-traveler relationship
+        $query = $wpdb->prepare(
+            "SELECT COUNT(*) FROM wp_co_travelers_info WHERE co_traveler_id = %d AND user_id = %d",
+            $co_traveler_id,
+            $user_id
+        );
+            
+        $count = $wpdb->get_var($query);
+        }else{
+            $count = 0;
+        }
+
+    
+    if (isset($_GET['user_id'])) {
+        if ( current_user_can( 'administrator' ) ) {
+            $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
+        }
+        elseif($count > 0){
+            $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
+        }  
+    }
 
     // Handle user profile update
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_profile_nonce'])) {
         if (!wp_verify_nonce($_POST['user_profile_nonce'], 'update_user_profile')) {
             wp_die('Security check failed.');
         }
-
+    
         // Sanitize input values
         $first_name = sanitize_text_field($_POST['first_name']);
         $last_name = sanitize_text_field($_POST['last_name']);
         $email = sanitize_email($_POST['email']);
         $phone = sanitize_text_field($_POST['phone']);
         $display_name = $first_name . ' ' . $last_name; // Concatenate first and last name
-
+        $website_url = esc_url($_POST['website']);
+    
         // Update user data
         wp_update_user(array(
             'ID'           => $user_id,
@@ -31,14 +59,51 @@ function up_handle_user_profile_update()
             'user_email'   => $email,
             'display_name' => $display_name,
         ));
-
+    
         // Update user meta for phone number
         update_user_meta($user_id, 'phone', $phone);
 
+        // Update user meta for website URL
+        update_user_meta($user_id, 'website', $website_url);
+    
+        // Handle profile image upload if provided
+        if (isset($_FILES['profile_image']) && !empty($_FILES['profile_image']['name'])) {
+    
+            // Handle the file upload
+            $uploaded_file = $_FILES['profile_image'];
+    
+            // Include WordPress file upload handler
+            require_once(ABSPATH . 'wp-admin/includes/file.php');
+    
+            // Upload the file
+            $upload_overrides = array('test_form' => false);
+            $movefile = wp_handle_upload($uploaded_file, $upload_overrides);
+    
+            if ($movefile && !isset($movefile['error'])) {
+                // File successfully uploaded
+                // Get the uploaded file's URL
+                $profile_image_url = $movefile['url'];
+    
+                // Debug: Check if file URL is correct
+                error_log('Uploaded Profile Image URL: ' . $profile_image_url);
+    
+                // Update user meta with the profile image URL
+                update_user_meta($user_id, 'profile_image', $profile_image_url);
+
+                // Set the profile image as the avatar (this is how you integrate it into the WordPress avatar system)
+                update_user_meta($user_id, 'avatar', $profile_image_url);
+            } else {
+                // Handle the error in file upload
+                wp_die('Error uploading file: ' . $movefile['error']);
+            }
+        }
+    
         // Redirect to avoid resubmission
         wp_safe_redirect($_SERVER['REQUEST_URI']);
         exit;
     }
+    
+     
 
     // Handle spouse form submission
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['user_profile_spouse_nonce'])) {
@@ -102,16 +167,34 @@ function up_handle_user_profile_update()
         }
 
         global $wpdb;
-        $user_id = get_current_user_id();
 
         // Sanitize input values
+        $sibling_id = sanitize_text_field($_POST['sibling_id']);
         $relationship = sanitize_text_field($_POST['relationship']);
         $name = sanitize_text_field($_POST['name']);
         $dob = sanitize_text_field($_POST['dateOfBirth']);
         $present_address = sanitize_textarea_field($_POST['presentAddress']);
 
+
         // Define the table name
         $table_name = $wpdb->prefix . 'siblings_info';
+
+        if($sibling_id){
+            // Update existing sibling record
+            $wpdb->update(
+                $table_name,
+                array(
+                    'relationship'    => $relationship,
+                    'name'            => $name,
+                    'date_of_birth'   => $dob,
+                    'present_address' => $present_address,
+                    'updated_at'      => current_time('mysql')
+                ),
+                array('sibling_id' => $sibling_id),
+                array('%s', '%s', '%s', '%s', '%s'),
+                array('%d')
+            );
+        } else {
 
         // Insert new sibling record
         $wpdb->insert(
@@ -127,6 +210,7 @@ function up_handle_user_profile_update()
             ),
             array('%d', '%s', '%s', '%s', '%s', '%s', '%s')
         );
+    }
 
         // Redirect to avoid form resubmission
         wp_safe_redirect($_SERVER['REQUEST_URI']);
@@ -142,7 +226,6 @@ function up_handle_user_profile_update()
         }
 
         global $wpdb;
-        $user_id = get_current_user_id();
 
         if (!$user_id) {
             wp_die('User not logged in');
@@ -214,9 +297,6 @@ function up_handle_user_profile_update()
     }
     if (isset($_POST['user_profile_children_nonce']) && wp_verify_nonce($_POST['user_profile_children_nonce'], 'update_children_info')) {
 
-        // Get the current user ID
-        $user_id = get_current_user_id();
-
         // Check if form data is submitted
         if ($user_id && isset($_POST['name'], $_POST['dateOfBirth'], $_POST['presentAddress'])) {
             global $wpdb;
@@ -224,10 +304,27 @@ function up_handle_user_profile_update()
             // Loop through the array of children info
             foreach ($_POST['name'] as $key => $name) {
                 // Sanitize the input values
+                $child_id = sanitize_text_field($_POST['child_id'][$key]);
                 $name = sanitize_text_field($name);
                 $date_of_birth = sanitize_text_field($_POST['dateOfBirth'][$key]);
                 $present_address = sanitize_textarea_field($_POST['presentAddress'][$key]);
 
+                // Check if the child ID is set
+                if ($child_id) {
+                    // Update existing child info
+                    $wpdb->update(
+                        $wpdb->prefix . 'children_info',
+                        array(
+                            'name' => $name,
+                            'date_of_birth' => $date_of_birth,
+                            'present_address' => $present_address,
+                            'updated_at' => current_time('mysql')
+                        ),
+                        array('child_id' => $child_id),
+                        array('%s', '%s', '%s', '%s'),
+                        array('%d')
+                    );
+                } else {
                 // Insert data into wp_children_info table
                 $wpdb->insert(
                     $wpdb->prefix . 'children_info',
@@ -240,6 +337,7 @@ function up_handle_user_profile_update()
                         'updated_at' => current_time('mysql')
                     )
                 );
+                }
             }
 
             // Success message or redirect
@@ -252,8 +350,6 @@ function up_handle_user_profile_update()
     // ocupations form submission
 
     if (isset($_POST['user_profile_occupations_nonce']) && wp_verify_nonce($_POST['user_profile_occupations_nonce'], 'update_occupations_info')) {
-
-        $user_id = get_current_user_id(); // Get the current logged-in user ID
 
         // Collect form data
         $company_name = sanitize_text_field($_POST['nameOfCompany']);
@@ -325,6 +421,194 @@ function up_handle_user_profile_update()
         // Optionally, add a success message
         echo '<div class="updated"><p>Occupation information saved successfully.</p></div>';
     }
+
+    // Handle contact persion form submission
+    if (isset($_POST['contactPersonName'], $_POST['contactPersonEmail'], $_POST['contactPersonPhoneNumber'])) {
+        
+        if (!is_user_logged_in()) {
+            return;
+        }
+        
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'professional_contact_info';
+
+        // Sanitize form inputs
+        $name = sanitize_text_field($_POST['contactPersonName']);
+        $email = sanitize_email($_POST['contactPersonEmail']);
+        $phone_number = sanitize_text_field($_POST['contactPersonPhoneNumber']);
+
+        // Check if the user already has a contact record
+        $existing_contact = $wpdb->get_var($wpdb->prepare("SELECT contact_id FROM $table_name WHERE user_id = %d", $user_id));
+
+        if ($existing_contact) {
+            // Update the existing contact info
+            $wpdb->update(
+                $table_name,
+                array(
+                    'name' => $name,
+                    'email' => $email,
+                    'phone_number' => $phone_number,
+                    'updated_at' => current_time('mysql')
+                ),
+                array('user_id' => $user_id),
+                array('%s', '%s', '%s', '%s'),
+                array('%d')
+            );
+        } else {
+            // Insert new contact info
+            $wpdb->insert(
+                $table_name,
+                array(
+                    'user_id' => $user_id,
+                    'name' => $name,
+                    'email' => $email,
+                    'phone_number' => $phone_number,
+                    'created_at' => current_time('mysql'),
+                    'updated_at' => current_time('mysql')
+                ),
+                array('%d', '%s', '%s', '%s', '%s', '%s')
+            );
+        }
+    }
+
+    // handle travel history
+    if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['user_profile_travel_history_nonce'])) {
+        if (!wp_verify_nonce($_POST['user_profile_travel_history_nonce'], 'update_travel_history_info')) {
+            wp_die('Security check failed.');
+        }
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'travel_history_info';
+        $from_country = sanitize_text_field($_POST['fromCountry']);
+        $to_country = sanitize_text_field($_POST['toCountry']);
+        $from_city = sanitize_text_field($_POST['fromCity']);
+        $to_city = sanitize_text_field($_POST['toCity']);
+        $purpose = sanitize_text_field($_POST['purpose']);
+        $travel_id = sanitize_text_field($_POST['travel_id']);
+
+        if ($user_id && $from_country && $to_country) {
+            if ($travel_id) {
+                $wpdb->update($table_name, [
+                    'from_country' => $from_country,
+                    'to_country' => $to_country,
+                    'from_city' => $from_city,
+                    'to_city' => $to_city,
+                    'purpose' => $purpose,
+                    'updated_at' => current_time('mysql')
+                ], ['travel_id' => $travel_id]);
+            } else {
+            $wpdb->insert($table_name, [
+                'user_id' => $user_id,
+                'from_country' => $from_country,
+                'to_country' => $to_country,
+                'from_city' => $from_city,
+                'to_city' => $to_city,
+                'purpose' => $purpose,
+                'created_at' => current_time('mysql'),
+                'updated_at' => current_time('mysql')
+            ]);
+        }
+        }
+    }
+
+    // handle others info form submission
+
+    if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['other_information_nonce']) && wp_verify_nonce($_POST['other_information_nonce'], 'other_information_form')) {
+        // Get the 'otherInformations' value from the form
+        $other_info = sanitize_textarea_field($_POST['otherInformations']); // Sanitize the input
+    
+        // Check if the input is not empty
+        if (!empty($other_info)) {
+    
+            if ($user_id) {
+                // Check if there's already existing info for this user
+                global $wpdb; // Use the $wpdb object for safe database interaction
+                $table_name = $wpdb->prefix . 'other_info';
+                $existing_info = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE user_id = %d LIMIT 1", $user_id));
+    
+                if ($existing_info) {
+                    // Update existing info
+                    $wpdb->update(
+                        $table_name,
+                        array(
+                            'others_info' => $other_info,
+                            'updated_at' => current_time('mysql')
+                        ),
+                        array('user_id' => $user_id),
+                        array('%s', '%s'),
+                        array('%d')
+                    );
+                } else {
+                    // Insert new info
+                    $wpdb->insert(
+                        $table_name,
+                        array(
+                            'user_id' => $user_id,
+                            'others_info' => $other_info,
+                            'created_at' => current_time('mysql'),
+                            'updated_at' => current_time('mysql')
+                        ),
+                        array('%d', '%s', '%s', '%s')
+                    );
+                }
+    
+                // Redirect or display a success message
+                echo '<p>Information saved successfully.</p>';
+            } else {
+                echo '<p>You must be logged in to submit this form.</p>';
+            }
+        } else {
+            echo '<p>Please enter some information.</p>';
+        }
+    }
+
+    // handle passport info form submission
+    if (isset($_POST['user_profile_passport_nonce']) && wp_verify_nonce($_POST['user_profile_passport_nonce'], 'update_passport_info')) {
+        
+        // Check if the form is submitted
+        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+
+            // Sanitize and retrieve form data
+            $passport_id = isset($_POST['passport_id']) ? sanitize_text_field($_POST['passport_id']) : '';
+            $given_name    = isset($_POST['givenName']) ? sanitize_text_field($_POST['givenName']) : '';
+            $surname       = isset($_POST['surname']) ? sanitize_text_field($_POST['surname']) : '';
+            $country_code  = isset($_POST['countryCode']) ? sanitize_text_field($_POST['countryCode']) : '';
+            $nationality   = isset($_POST['nationality']) ? sanitize_text_field($_POST['nationality']) : '';
+            $place_of_birth = isset($_POST['placeOfBirth']) ? sanitize_text_field($_POST['placeOfBirth']) : '';
+            $date_of_birth = isset($_POST['dateOfBirth']) ? sanitize_text_field($_POST['dateOfBirth']) : '';
+            $issue_date    = isset($_POST['issueDate']) ? sanitize_text_field($_POST['issueDate']) : '';
+            $expiry_date   = isset($_POST['expiryDate']) ? sanitize_text_field($_POST['expiryDate']) : '';
+            $passport_number = isset($_POST['passportNumber']) ? sanitize_text_field($_POST['passportNumber']) : '';
+            
+            // Insert into the database
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'passport_info';
+
+            // Prepare the data for insertion
+            $data = array(
+                'user_id'        => $user_id,
+                'given_name'     => $given_name,
+                'surname'        => $surname,
+                'country_code'   => $country_code,
+                'nationality'    => $nationality,
+                'date_of_birth'  => $date_of_birth,
+                'issue_date'     => $issue_date,
+                'expiry_date'    => $expiry_date,
+                'passport_number'=> $passport_number,
+            );
+
+            if ($passport_id){
+                // Update the data in the database
+                $wpdb->update($table_name, $data, array('passport_id' => $passport_id));
+            } else {
+                // Insert the data into the database
+                $wpdb->insert($table_name, $data);
+            }
+
+            // Redirect or show a message after form submission (success)
+            echo 'Passport information has been saved successfully.';
+        }
+    }
 }
 
 // Hook to process before headers are sent
@@ -337,17 +621,45 @@ function up_user_profile_shortcode()
         return '<p>You need to be logged in to view this page.</p>';
     }
 
+    global $wpdb;
+    $user_id = get_current_user_id();
+
+    // Check if the user_id from GET is a co-traveler of the current user
+    $co_traveler_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : 0;
+    
+    if($co_traveler_id!==0){
+    // Perform a database query to check the co-traveler relationship
+    $query = $wpdb->prepare(
+        "SELECT COUNT(*) FROM wp_co_travelers_info WHERE co_traveler_id = %d AND user_id = %d",
+        $co_traveler_id,
+        $user_id
+    );
+        
+    $count = $wpdb->get_var($query);
+    }else{
+        $count = 0;
+    }
+
+    
+    if (isset($_GET['user_id'])) {
+        if ( current_user_can( 'administrator' ) ) {
+            $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
+        }
+        elseif($count > 0){
+            $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
+        }  
+    }
+
     $current_user = wp_get_current_user();
 
     // Get user meta for phone number
-    $phone = get_user_meta($current_user->ID, 'phone', true);
+    $phone = get_user_meta($user_id, 'phone', true);
 
     ob_start();
 ?>
     <?php
     // Fetch user data when rendering the nid modal
     global $wpdb;
-    $user_id = get_current_user_id();
     $table_name = $wpdb->prefix . 'user_info';
 
     // Get existing user data
@@ -360,11 +672,15 @@ function up_user_profile_shortcode()
     // Fetch spouse data when rendering the spouse modal
 
     // Usage Example
-    $spouse = get_spouse_info_for_current_user();
-    $siblings = get_sibling_info_for_current_user();
+    $spouse = get_spouse_info_for_current_user($user_id);
+    $siblings = get_sibling_info_for_current_user($user_id);
     $parent_info = get_parent_info($user_id);
     $children = get_children_info($user_id);
     $occupation_info = get_existing_occupation_info($user_id);
+    $contact_person_info = get_contact_person_info($user_id);
+    $travel_history = get_travel_history($user_id);
+    $other_info = get_user_other_info($user_id);
+    $user_passport_info = get_user_passport_info($user_id);
 
     ?>
     <?php include 'head.php'; ?>
@@ -19549,7 +19865,7 @@ function up_user_profile_shortcode()
                                                             <p class="name"><?php
                                                                             if (is_user_logged_in()) {
                                                                                 // Display first name and last name
-                                                                                echo esc_html($current_user->first_name . ' ' . $current_user->last_name);
+                                                                                echo esc_html(get_user_meta($user_id, 'first_name', true) . ' ' . get_user_meta($user_id, 'last_name', true));
                                                                             } else {
                                                                                 echo 'Guest User';
                                                                             }
@@ -19563,9 +19879,18 @@ function up_user_profile_shortcode()
                                                                             type="file" style="display:none" accept="">
                                                                         <div class="avatar-uploader">
                                                                             <div class="image"><?php
-                                                                                                if (is_user_logged_in()) {
-                                                                                                    $current_user = wp_get_current_user();
-                                                                                                    echo get_avatar($current_user->ID, 96); // Avatar size
+                                                                                                if (is_user_logged_in()) {                                                                                                                                                                                            
+                                                                                                    // Get the user's custom profile image URL from user meta (assuming it's stored under 'profile_image')
+                                                                                                    $profile_image_url = get_user_meta($user_id, 'profile_image', true);
+                                                                                                    
+                                                                                                    // Check if the user has a custom profile image
+                                                                                                    if ($profile_image_url) {
+                                                                                                        // If the user has a custom profile image, display it
+                                                                                                        echo '<img src="' . esc_url($profile_image_url) . '" alt="User Avatar" class="user-avatar" width="96" height="96">';
+                                                                                                    } else {
+                                                                                                        // If no custom image, display the default avatar
+                                                                                                        echo get_avatar($user_id, 96); // Default Gravatar fallback
+                                                                                                    }
                                                                                                 } else {
                                                                                                     echo '<img src="https://secure.gravatar.com/avatar/729ae85bf62b9917e93538db2f2688ca?s=96&d=mm&r=g" alt="Default Avatar" width="96" height="96" />'; // Optional default avatar
                                                                                                 }
@@ -19595,10 +19920,10 @@ function up_user_profile_shortcode()
                                                                                 </path>
                                                                             </svg></span>
                                                                         <p><?php if (is_user_logged_in()) {
-                                                                                $current_user_id = get_current_user_id();
+                                                                                
 
                                                                                 // Get the user's phone number
-                                                                                $phone_number = get_user_meta($current_user_id, 'phone', true); // Replace 'phone' with the actual meta key if different
+                                                                                $phone_number = get_user_meta($user_id, 'phone', true); // Replace 'phone' with the actual meta key if different
 
                                                                                 if (!empty($phone_number)) {
                                                                                     echo esc_html($phone_number);
@@ -19622,7 +19947,7 @@ function up_user_profile_shortcode()
                                                                             </svg></span>
                                                                         <p class="break-all"><?php
                                                                                                 if (is_user_logged_in()) {
-                                                                                                    echo esc_html($current_user->user_email);
+                                                                                                    echo esc_html(get_user_meta($user_id, 'nickname', true) ?? $current_user->user_email);
                                                                                                 } else {
                                                                                                     echo 'guest@example.com'; // Optional default email
                                                                                                 }
@@ -19638,11 +19963,9 @@ function up_user_profile_shortcode()
                                                                                 </path>
                                                                             </svg></span>
                                                                         <p><?php if (is_user_logged_in()) {
-                                                                                $current_user_id = get_current_user_id();
-                                                                                $user_info = get_userdata($current_user_id);
-
-                                                                                // Get the user's website URL
-                                                                                $website_url = $user_info->user_url;
+                                                                                
+                                                                                 // Get the user's website URL
+                                                                                $website_url = get_user_meta($user_id, 'website', true);
 
                                                                                 if (!empty($website_url)) {
                                                                                     echo '<a href="' . esc_url($website_url) . '">' . esc_html($website_url) . '</a>';
@@ -19662,6 +19985,7 @@ function up_user_profile_shortcode()
                                                             <h2 class="title">NID Informations</h2>
                                                             <?php echo $nid_value === '' ? generate_add_button("nid_add") : generate_icon_button("nid_add"); ?>
                                                         </div>
+                                                        <?php if ($nid_value) { ?>
                                                         <div class="ant-collapse ant-collapse-icon-position-start css-1588u1j" role="tablist">
                                                             <div class="ant-collapse-item">
                                                                 <div class="ant-collapse-header" aria-expanded="false" aria-disabled="false" role="tab" tabindex="0">
@@ -19691,6 +20015,7 @@ function up_user_profile_shortcode()
                                                                 </div>
                                                             </div>
                                                         </div>
+                                                        <?php } ?>
                                                     </div>
                                                 </div>
                                                 <div style="padding-left:10px;padding-right:10px"
@@ -19700,7 +20025,9 @@ function up_user_profile_shortcode()
                                                             <h2 class="title">Passport Informations</h2>
                                                             <?php echo generate_add_button("passport_add"); ?>
                                                         </div>
+                                                       <?php if ($user_passport_info) { ?>
                                                         <div class="ant-collapse ant-collapse-icon-position-start css-1588u1j" role="tablist">
+                                                            <?php foreach ($user_passport_info as $passport) { ?>
                                                             <div class="ant-collapse-item">
                                                                 <div class="ant-collapse-header" aria-expanded="false" aria-disabled="false"
                                                                     role="tab" tabindex="0">
@@ -19713,14 +20040,16 @@ function up_user_profile_shortcode()
                                                                                     d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z">
                                                                                 </path>
                                                                             </svg></span></div><span class="ant-collapse-header-text">
-                                                                        <div class="flex justify-between gap-2" style="align-items: center;">Passport No: 1a1gfagaer<div
-                                                                                class="flex gap-2"><span><svg stroke="currentColor"
+                                                                        <div class="flex justify-between gap-2" style="align-items: center;">Passport No: <?php echo esc_html($passport->passport_number); ?><div
+                                                                                class="flex gap-2 justify-center items-center"><span class="passport_add" data-values='<?php echo json_encode($passport); ?>' data-id="<?php echo $passport->passport_id; ?>"><svg stroke="currentColor"
                                                                                         fill="currentColor" stroke-width="0" viewBox="0 0 576 512"
                                                                                         height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
                                                                                         <path
                                                                                             d="M402.6 83.2l90.2 90.2c3.8 3.8 3.8 10 0 13.8L274.4 405.6l-92.8 10.3c-12.4 1.4-22.9-9.1-21.5-21.5l10.3-92.8L388.8 83.2c3.8-3.8 10-3.8 13.8 0zm162-22.9l-48.8-48.8c-15.2-15.2-39.9-15.2-55.2 0l-35.4 35.4c-3.8 3.8-3.8 10 0 13.8l90.2 90.2c3.8 3.8 10 3.8 13.8 0l35.4-35.4c15.2-15.3 15.2-40 0-55.2zM384 346.2V448H64V128h229.8c3.2 0 6.2-1.3 8.5-3.5l40-40c7.6-7.6 2.2-20.5-8.5-20.5H48C21.5 64 0 85.5 0 112v352c0 26.5 21.5 48 48 48h352c26.5 0 48-21.5 48-48V306.2c0-10.7-12.9-16-20.5-8.5l-40 40c-2.2 2.3-3.5 5.3-3.5 8.5z">
                                                                                         </path>
-                                                                                    </svg></span></div>
+                                                                                    </svg></span>
+                                                                                <span><?php echo generate_delete_button("passport_info", $passport->passport_id); ?> </span>
+                                                                                </div>
                                                                         </div>
                                                                     </span>
                                                                 </div>
@@ -19730,35 +20059,35 @@ function up_user_profile_shortcode()
                                                                         <div class="provided_information border border-[#d9d9d9] border-none">
                                                                             <div class="item py-2">
                                                                                 <p>Passport Given Name</p>
-                                                                                <h5>Raihan</h5>
+                                                                                <h5><?php echo esc_html($passport->given_name); ?></h5>
                                                                             </div>
                                                                             <div class="item py-2">
                                                                                 <p>Passport Surname</p>
-                                                                                <h5>Hossain</h5>
+                                                                                <h5><?php echo esc_html($passport->surname); ?></h5>
                                                                             </div>
                                                                             <div class="item py-2">
                                                                                 <p>Passport Country Code</p>
-                                                                                <h5><?php echo esc_html($spouse->name); ?></h5>
+                                                                                <h5><?php echo esc_html($passport->country_code); ?></h5>
                                                                             </div>
                                                                             <div class="item py-2">
                                                                                 <p>Passport Nationality</p>
-                                                                                <h5><?php echo esc_html($spouse->name); ?></h5>
+                                                                                <h5><?php echo esc_html($passport->nationality); ?></h5>
                                                                             </div>
                                                                             <div class="item py-2">
                                                                                 <p>Passport Date Of Birth</p>
-                                                                                <h5>2025-01-27</h5>
+                                                                                <h5> <?php echo esc_html($passport->date_of_birth); ?></h5>
                                                                             </div>
                                                                             <div class="item py-2">
                                                                                 <p>Passport Issue Date</p>
-                                                                                <h5>2025-01-27</h5>
+                                                                                <h5><?php echo esc_html($passport->issue_date); ?></h5>
                                                                             </div>
                                                                             <div class="item py-2">
                                                                                 <p>Passport Expiry Date</p>
-                                                                                <h5>2025-07-31</h5>
+                                                                                <h5><?php echo esc_html($passport->expiry_date); ?></h5>
                                                                             </div>
                                                                             <div class="item py-2">
                                                                                 <p>Passport Number</p>
-                                                                                <h5>1a1gfagaer</h5>
+                                                                                <h5><?php echo esc_html($passport->passport_number); ?></h5>
                                                                             </div>
                                                                             <div
                                                                                 class="flex items-center justify-center gap-2 bg-[var(--color-lotion)]">
@@ -19767,6 +20096,7 @@ function up_user_profile_shortcode()
                                                                     </div>
                                                                 </div>
                                                             </div>
+                                                            <?php } ?>
                                                             <script>
                                                                 document.addEventListener('DOMContentLoaded', function() {
                                                                     const headers = document.querySelectorAll('.ant-collapse-header');
@@ -19782,6 +20112,7 @@ function up_user_profile_shortcode()
                                                                 });
                                                             </script>
                                                         </div>
+                                                        <?php } ?>
                                                     </div>
                                                 </div>
                                             </div>
@@ -19914,11 +20245,11 @@ function up_user_profile_shortcode()
                                                                                             <p>Present Address</p>
                                                                                             <h5><?php echo $sibling->present_address; ?></h5>
                                                                                         </div>
-                                                                                        <div class="flex items-center justify-center gap-2 bg-[var(--color-lotion)]"><button type="button" class="ant-btn css-1588u1j ant-btn-default" style="padding: 0px; border: none;"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024" class="text-[20px]" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
-                                                                                                    <path d="M360 184h-8c4.4 0 8-3.6 8-8v8h304v-8c0 4.4 3.6 8 8 8h-8v72h72v-80c0-35.3-28.7-64-64-64H352c-35.3 0-64 28.7-64 64v80h72v-72zm504 72H160c-17.7 0-32 14.3-32 32v32c0 4.4 3.6 8 8 8h60.4l24.7 523c1.6 34.1 29.8 61 63.9 61h454c34.2 0 62.3-26.8 63.9-61l24.7-523H888c4.4 0 8-3.6 8-8v-32c0-17.7-14.3-32-32-32zM731.3 840H292.7l-24.2-512h487l-24.2 512z"></path>
-                                                                                                </svg></button><button type="button" class="ant-btn css-1588u1j ant-btn-default" style="padding: 0px; border: none;"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" class="text-[20px]" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                                                                                        <div class="flex items-center justify-center gap-2 bg-[var(--color-lotion)]">
+                                                                                            <?php echo generate_delete_button("siblings_info", $sibling->sibling_id); ?>                                                                                            
+                                                                                            <button type="button" class="ant-btn css-1588u1j ant-btn-default sibling_add" style="padding: 0px; border: none;" data-values='<?php echo json_encode($sibling);?>' data-id="<?php echo $sibling->sibling_id;?>"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" class="text-[20px]" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
                                                                                                     <path d="M19.045 7.401c.378-.378.586-.88.586-1.414s-.208-1.036-.586-1.414l-1.586-1.586c-.378-.378-.88-.586-1.414-.586s-1.036.208-1.413.585L4 13.585V18h4.413L19.045 7.401zm-3-3 1.587 1.585-1.59 1.584-1.586-1.585 1.589-1.584zM6 16v-1.585l7.04-7.018 1.586 1.586L7.587 16H6zm-2 4h16v2H4z"></path>
-                                                                                                </svg></button></div>
+                                                                                            </svg></button></div>
                                                                                     </div>
                                                                                 </div>
                                                                             </div>
@@ -20032,9 +20363,9 @@ function up_user_profile_shortcode()
                                                                                             <p>Present Address</p>
                                                                                             <h5><?php echo esc_html($child->present_address ?? ''); ?></h5>
                                                                                         </div>
-                                                                                        <div class="flex items-center justify-center gap-2 bg-[var(--color-lotion)]"><button type="button" class="ant-btn css-1588u1j ant-btn-default" style="padding: 0px; border: none;"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024" class="text-[20px]" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
-                                                                                                    <path d="M360 184h-8c4.4 0 8-3.6 8-8v8h304v-8c0 4.4 3.6 8 8 8h-8v72h72v-80c0-35.3-28.7-64-64-64H352c-35.3 0-64 28.7-64 64v80h72v-72zm504 72H160c-17.7 0-32 14.3-32 32v32c0 4.4 3.6 8 8 8h60.4l24.7 523c1.6 34.1 29.8 61 63.9 61h454c34.2 0 62.3-26.8 63.9-61l24.7-523H888c4.4 0 8-3.6 8-8v-32c0-17.7-14.3-32-32-32zM731.3 840H292.7l-24.2-512h487l-24.2 512z"></path>
-                                                                                                </svg></button><button type="button" class="ant-btn css-1588u1j ant-btn-default" style="padding: 0px; border: none;"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" class="text-[20px]" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                                                                                        <div class="flex items-center justify-center gap-2 bg-[var(--color-lotion)]">
+                                                                                        <?php echo generate_delete_button("children_info", $child->child_id); ?> 
+                                                                                        <button type="button" class="ant-btn css-1588u1j ant-btn-default child_add" style="padding: 0px; border: none;" data-values='<?php echo json_encode($child); ?>' data-id="<?php echo $child->child_id;?>"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" class="text-[20px]" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
                                                                                                     <path d="M19.045 7.401c.378-.378.586-.88.586-1.414s-.208-1.036-.586-1.414l-1.586-1.586c-.378-.378-.88-.586-1.414-.586s-1.036.208-1.413.585L4 13.585V18h4.413L19.045 7.401zm-3-3 1.587 1.585-1.59 1.584-1.586-1.585 1.589-1.584zM6 16v-1.585l7.04-7.018 1.586 1.586L7.587 16H6zm-2 4h16v2H4z"></path>
                                                                                                 </svg></button></div>
                                                                                     </div>
@@ -20122,27 +20453,28 @@ function up_user_profile_shortcode()
                                                                 <h2 class="title">Professional Contact Person Details</h2>
                                                                 <div class="flex items-center gap-3 contact_person_add"><?php echo generate_icon_button(); ?></div>
                                                             </div>
+                                                            <?php if ($contact_person_info) { ?>
                                                             <div class="ant-collapse ant-collapse-icon-position-start css-1588u1j" role="tablist">
                                                                 <div class="ant-collapse-item ant-collapse-item-active">
                                                                     <div class="ant-collapse-header" aria-expanded="true" aria-disabled="false" role="tab" tabindex="0">
                                                                         <div class="ant-collapse-expand-icon"><span role="img" aria-label="expanded" class="anticon anticon-right ant-collapse-arrow"><svg viewBox="64 64 896 896" focusable="false" data-icon="right" width="1em" height="1em" fill="currentColor" aria-hidden="true" style="transform: rotate(90deg);">
                                                                                     <path d="M765.7 486.8L314.9 134.7A7.97 7.97 0 00302 141v77.3c0 4.9 2.3 9.6 6.1 12.6l360 281.1-360 281.1c-3.9 3-6.1 7.7-6.1 12.6V883c0 6.7 7.7 10.4 12.9 6.3l450.8-352.1a31.96 31.96 0 000-50.4z"></path>
-                                                                                </svg></span></div><span class="ant-collapse-header-text">Raihan Hossain</span>
+                                                                                </svg></span></div><span class="ant-collapse-header-text"><?php echo esc_html($contact_person_info['name']); ?></span>
                                                                     </div>
                                                                     <div class="ant-collapse-content ant-collapse-content-active" role="tabpanel">
                                                                         <div class="ant-collapse-content-box">
                                                                             <div class="provided_information border border-[#d9d9d9] border-none">
                                                                                 <div class="item py-2">
                                                                                     <p>Name</p>
-                                                                                    <h5>Raihan Hossain</h5>
+                                                                                    <h5><?php echo esc_html($contact_person_info['name']); ?></h5>
                                                                                 </div>
                                                                                 <div class="item py-2">
                                                                                     <p>Email</p>
-                                                                                    <h5>test@gmail.com</h5>
+                                                                                    <h5><?php echo esc_html($contact_person_info['email']); ?></h5>
                                                                                 </div>
                                                                                 <div class="item py-2">
                                                                                     <p>Phone Number</p>
-                                                                                    <h5>01863995432</h5>
+                                                                                    <h5><?php echo esc_html($contact_person_info['phone_number']); ?></h5>
                                                                                 </div>
                                                                                 <div class="flex items-center justify-center gap-2 bg-[var(--color-lotion)]"></div>
                                                                             </div>
@@ -20150,6 +20482,7 @@ function up_user_profile_shortcode()
                                                                     </div>
                                                                 </div>
                                                             </div>
+                                                            <?php } ?>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -20166,6 +20499,7 @@ function up_user_profile_shortcode()
                                                             </div>
                                                         </div>
                                                     </div>
+                                                    <?php if ($travel_history): ?>
                                                     <div class="ant-row mt-5 css-1588u1j">
                                                         <div class="ant-col ant-col-24 css-1588u1j">
                                                             <div class="ant-col ant-col-24 css-1588u1j">
@@ -20190,23 +20524,25 @@ function up_user_profile_shortcode()
                                                                                                         </tr>
                                                                                                     </thead>
                                                                                                     <tbody class="ant-table-tbody">
+                                                                                                        <?php foreach ($travel_history as $travel): ?>
                                                                                                         <tr class="ant-table-row ant-table-row-level-0">
-                                                                                                            <td class="ant-table-cell">Bangladesh</td>
-                                                                                                            <td class="ant-table-cell">Afghanistan</td>
-                                                                                                            <td class="ant-table-cell">Chittagong</td>
-                                                                                                            <td class="ant-table-cell">Badghis</td>
-                                                                                                            <td class="ant-table-cell">aagae</td>
+                                                                                                            <td class="ant-table-cell"><?= esc_html($travel->from_country); ?></td>
+                                                                                                            <td class="ant-table-cell"><?= esc_html($travel->to_country); ?></td>
+                                                                                                            <td class="ant-table-cell"><?= esc_html($travel->from_city); ?></td>
+                                                                                                            <td class="ant-table-cell"><?= esc_html($travel->to_city); ?></td>
+                                                                                                            <td class="ant-table-cell"><?= esc_html($travel->purpose); ?></td>
                                                                                                             <td class="ant-table-cell">
                                                                                                                 <div class="ant-space css-1588u1j ant-space-horizontal ant-space-align-center ant-space-gap-row-small ant-space-gap-col-small">
-                                                                                                                    <div class="ant-space-item"><button type="button" class="ant-btn css-1588u1j ant-btn-default travel_history_add" style="font-size: 20px; border-radius: 5px;"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                                                                                                                    <div class="ant-space-item"><button type="button" data-id="<?php echo $travel->travel_id; ?>" data-values='<?php echo json_encode($travel); ?>' class="ant-btn css-1588u1j ant-btn-default travel_history_add" style="font-size: 20px; border-radius: 5px;"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
                                                                                                                                 <path d="M880 836H144c-17.7 0-32 14.3-32 32v36c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-36c0-17.7-14.3-32-32-32zm-622.3-84c2 0 4-.2 6-.5L431.9 722c2-.4 3.9-1.3 5.3-2.8l423.9-423.9a9.96 9.96 0 0 0 0-14.1L694.9 114.9c-1.9-1.9-4.4-2.9-7.1-2.9s-5.2 1-7.1 2.9L256.8 538.8c-1.5 1.5-2.4 3.3-2.8 5.3l-29.5 168.2a33.5 33.5 0 0 0 9.4 29.8c6.6 6.4 14.9 9.9 23.8 9.9z"></path>
                                                                                                                             </svg></button></div>
-                                                                                                                    <div class="ant-space-item"><button type="button" class="ant-btn css-1588u1j ant-btn-primary ant-btn-dangerous" style="font-size: 20px; border-radius: 5px;"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
-                                                                                                                                <path d="M864 256H736v-80c0-35.3-28.7-64-64-64H352c-35.3 0-64 28.7-64 64v80H160c-17.7 0-32 14.3-32 32v32c0 4.4 3.6 8 8 8h60.4l24.7 523c1.6 34.1 29.8 61 63.9 61h454c34.2 0 62.3-26.8 63.9-61l24.7-523H888c4.4 0 8-3.6 8-8v-32c0-17.7-14.3-32-32-32zm-200 0H360v-72h304v72z"></path>
-                                                                                                                            </svg></button></div>
+                                                                                                                    <div class="ant-space-item">
+                                                                                                                            <?php echo generate_delete_button("travel_history_info", $travel->travel_id, "ant-btn-primary ant-btn-dangerous", "padding:4px 15px;"); ?> 
+                                                                                                                        </div>
                                                                                                                 </div>
                                                                                                             </td>
                                                                                                         </tr>
+                                                                                                        <?php endforeach; ?>
                                                                                                     </tbody>
                                                                                                 </table>
                                                                                             </div>
@@ -20220,12 +20556,39 @@ function up_user_profile_shortcode()
                                                             </div>
                                                         </div>
                                                     </div>
+                                                    <?php else: ?>
+                                                        <div class="ant-row mt-5 css-1588u1j items-center justify-center">
+                                    <div class="applied_visa_list flex flex-col gap-5">
+                                        <div class="css-1588u1j ant-empty">
+                                            <div class="ant-empty-image"><svg width="184" height="152" viewBox="0 0 184 152" xmlns="http://www.w3.org/2000/svg">
+                                                    <title>empty image</title>
+                                                    <g fill="none" fill-rule="evenodd">
+                                                        <g transform="translate(24 31.67)">
+                                                            <ellipse fill-opacity=".8" fill="#F5F5F7" cx="67.797" cy="106.89" rx="67.797" ry="12.668"></ellipse>
+                                                            <path d="M122.034 69.674L98.109 40.229c-1.148-1.386-2.826-2.225-4.593-2.225h-51.44c-1.766 0-3.444.839-4.592 2.225L13.56 69.674v15.383h108.475V69.674z" fill="#AEB8C2"></path>
+                                                            <path d="M101.537 86.214L80.63 61.102c-1.001-1.207-2.507-1.867-4.048-1.867H31.724c-1.54 0-3.047.66-4.048 1.867L6.769 86.214v13.792h94.768V86.214z" fill="url(#linearGradient-1)" transform="translate(13.56)"></path>
+                                                            <path d="M33.83 0h67.933a4 4 0 0 1 4 4v93.344a4 4 0 0 1-4 4H33.83a4 4 0 0 1-4-4V4a4 4 0 0 1 4-4z" fill="#F5F5F7"></path>
+                                                            <path d="M42.678 9.953h50.237a2 2 0 0 1 2 2V36.91a2 2 0 0 1-2 2H42.678a2 2 0 0 1-2-2V11.953a2 2 0 0 1 2-2zM42.94 49.767h49.713a2.262 2.262 0 1 1 0 4.524H42.94a2.262 2.262 0 0 1 0-4.524zM42.94 61.53h49.713a2.262 2.262 0 1 1 0 4.525H42.94a2.262 2.262 0 0 1 0-4.525zM121.813 105.032c-.775 3.071-3.497 5.36-6.735 5.36H20.515c-3.238 0-5.96-2.29-6.734-5.36a7.309 7.309 0 0 1-.222-1.79V69.675h26.318c2.907 0 5.25 2.448 5.25 5.42v.04c0 2.971 2.37 5.37 5.277 5.37h34.785c2.907 0 5.277-2.421 5.277-5.393V75.1c0-2.972 2.343-5.426 5.25-5.426h26.318v33.569c0 .617-.077 1.216-.221 1.789z" fill="#DCE0E6"></path>
+                                                        </g>
+                                                        <path d="M149.121 33.292l-6.83 2.65a1 1 0 0 1-1.317-1.23l1.937-6.207c-2.589-2.944-4.109-6.534-4.109-10.408C138.802 8.102 148.92 0 161.402 0 173.881 0 184 8.102 184 18.097c0 9.995-10.118 18.097-22.599 18.097-4.528 0-8.744-1.066-12.28-2.902z" fill="#DCE0E6"></path>
+                                                        <g transform="translate(149.65 15.383)" fill="#FFF">
+                                                            <ellipse cx="20.654" cy="3.167" rx="2.849" ry="2.815"></ellipse>
+                                                            <path d="M5.698 5.63H0L2.898.704zM9.259.704h4.985V5.63H9.259z"></path>
+                                                        </g>
+                                                    </g>
+                                                </svg></div>
+                                            <div class="ant-empty-description">No travel history added</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                                    <?php endif; ?>
                                                 </div>
                                             </div>
                                             <div class="information_wrapper rprofile_tab_item" id="other_information">
                                                 <div class="personal_information information form_wrapper">
                                                     <section class="profile">
-                                                        <form class="ant-form ant-form-vertical ant-form-hide-required-mark css-1588u1j">
+                                                        <form class="ant-form ant-form-vertical ant-form-hide-required-mark css-1588u1j" id="other_information_form" method="post" action="">
+                                                            <?php wp_nonce_field('other_information_form', 'other_information_nonce'); ?>
                                                             <div class="layout">
                                                                 <div class="section_header">
                                                                     <h2>Other Information Related to Visa Application</h2>
@@ -20236,7 +20599,7 @@ function up_user_profile_shortcode()
                                                                             <div class="ant-row ant-form-item-row css-1588u1j">
                                                                                 <div class="ant-col ant-form-item-control css-1588u1j">
                                                                                     <div class="ant-form-item-control-input">
-                                                                                        <div class="ant-form-item-control-input-content"><textarea placeholder="Text Here" id="otherInformations" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" style="resize: none; height: 266px; min-height: 266px;"></textarea></div>
+                                                                                        <div class="ant-form-item-control-input-content"><textarea placeholder="Text Here" id="otherInformations" name="otherInformations" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" style="resize: none; height: 266px; min-height: 266px;"><?php echo $other_info; ?></textarea></div>
                                                                                     </div>
                                                                                 </div>
                                                                             </div>
@@ -20339,11 +20702,44 @@ function up_user_profile_shortcode()
                             <div class="basic_information form_wrapper">
                                 <section class="profile">
                                     <form
-                                        class="ant-form ant-form-vertical ant-form-hide-required-mark ant-form-large css-1588u1j" method="post" action="">
+                                        class="ant-form ant-form-vertical ant-form-hide-required-mark ant-form-large css-1588u1j" method="post" action="" enctype="multipart/form-data">
                                         <?php wp_nonce_field('update_user_profile', 'user_profile_nonce'); ?>
                                         <div class="layout">
                                             <div class="text-center">
                                                 <h2 class="mb-4 text-xl">Basic Information</h2>
+                                            </div>
+                                            <div class="profile-image-section text-center mb-4 flex justify-center items-center flex-col uploader_wrapper" style="margin:0px;">
+                                                <div class="profile-image-container avatar-uploader">
+                                                    <!-- Display current profile image -->
+                                                    <?php
+                                                    if (is_user_logged_in()) {                                                                                                              
+                                                        // Get the user's custom profile image URL from user meta (assuming it's stored under 'profile_image')
+                                                        $profile_image_url = get_user_meta($user_id, 'profile_image', true);
+                                                        
+                                                        // Check if the user has a custom profile image
+                                                        if ($profile_image_url) {
+                                                            // If the user has a custom profile image, display it
+                                                            $avatar_url = $profile_image_url;
+                                                        } else {
+                                                            // If no custom image, display the default avatar
+                                                            $avatar_url = get_avatar_url($user_id); // Default Gravatar fallback
+                                                        }
+                                                    } else {
+                                                        $avatar_url = "https://secure.gravatar.com/avatar/729ae85bf62b9917e93538db2f2688ca?s=96&d=mm&r=g"; // Optional default avatar
+                                                    }
+                                                    ?>
+                                                    <img src="<?php echo esc_url($avatar_url); ?>" alt="Profile Image" class="profile-image rounded-circle" style="border-radius:100%; padding:10px; width: 120px; height: 120px; object-fit: cover;">
+                                                    <div class="upload_icon"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                                                    <path fill="none" d="M0 0h24v24H0z"></path>
+                                                    <circle cx="12" cy="12" r="3.2"></circle>
+                                                    <path d="M9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z">
+                                                    </path>
+                                                </svg></div>
+                                                </div>
+                                                <div class="upload-button mt-2">
+                                                    <input type="file" name="profile_image" id="profile_image" accept="image/*">
+                                                </div>
+                                                
                                             </div>
                                             <div class="ant-row css-1588u1j"
                                                 style="margin-left: -10px; margin-right: -10px;">
@@ -20356,7 +20752,7 @@ function up_user_profile_shortcode()
                                                                     name</label></div>
                                                             <div class="ant-col ant-form-item-control css-1588u1j">
                                                                 <div class="ant-form-item-control-input">
-                                                                    <div class="ant-form-item-control-input-content"><input type="text" name="first_name" value="<?php echo esc_attr($current_user->first_name); ?>" required></div>
+                                                                    <div class="ant-form-item-control-input-content"><input type="text" name="first_name" value="<?php echo esc_attr(get_user_meta($user_id, 'first_name', true)); ?>" required></div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -20371,7 +20767,7 @@ function up_user_profile_shortcode()
                                                                     name</label></div>
                                                             <div class="ant-col ant-form-item-control css-1588u1j">
                                                                 <div class="ant-form-item-control-input">
-                                                                    <div class="ant-form-item-control-input-content"><input type="text" name="last_name" value="<?php echo esc_attr($current_user->last_name); ?>" required>
+                                                                    <div class="ant-form-item-control-input-content"><input type="text" name="last_name" value="<?php echo esc_attr(get_user_meta($user_id, 'last_name', true)); ?>" required>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -20386,7 +20782,7 @@ function up_user_profile_shortcode()
                                                                     for="email" class="" title="Email">Email</label></div>
                                                             <div class="ant-col ant-form-item-control css-1588u1j">
                                                                 <div class="ant-form-item-control-input">
-                                                                    <div class="ant-form-item-control-input-content"><input type="email" name="email" value="<?php echo esc_attr($current_user->user_email); ?>" required></div>
+                                                                    <div class="ant-form-item-control-input-content"><input type="email" name="email" value="<?php echo esc_html(get_user_meta($user_id, 'nickname', true) ?? $current_user->user_email); ?>" required></div>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -20436,11 +20832,8 @@ function up_user_profile_shortcode()
                                                                             placeholder="Enter web link" id="webLink" name="website"
                                                                             class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded"
                                                                             type="text" value="<?php if (is_user_logged_in()) {
-                                                                                                    $current_user_id = get_current_user_id();
-                                                                                                    $user_info = get_userdata($current_user_id);
-
                                                                                                     // Get the user's website URL
-                                                                                                    $website_url = $user_info->user_url;
+                                                                                                    $website_url = get_user_meta($user_id, 'website', true);
 
                                                                                                     if (!empty($website_url)) {
                                                                                                         echo esc_html($website_url);
@@ -20501,6 +20894,7 @@ function up_user_profile_shortcode()
                                     </svg></span></span></button>
                         <div class="ant-modal-body">
                             <form class="ant-form nidinfoform ant-form-vertical ant-form-hide-required-mark css-1588u1j">
+                                <input type="hidden" name="user_id" id="user_id" value="<?php echo $user_id; ?>">
                                 <div class="ant-row css-1588u1j" style="margin-left: -10px; margin-right: -10px;">
                                     <div class="ant-col ant-col-xs-24 ant-col-md-24 ant-col-xl-24 css-1588u1j"
                                         style="padding-left: 10px; padding-right: 10px;">
@@ -20717,6 +21111,7 @@ function up_user_profile_shortcode()
                                 <form
                                     class="ant-form ant-form-vertical ant-form-hide-required-mark ant-form-large css-1588u1j" method="post" action="">
                                     <?php wp_nonce_field('update_sibling_info', 'user_profile_sibling_nonce'); ?>
+                                    <input type="hidden" name="sibling_id" id="sibling_id" value="">
                                     <div class="ant-row css-1588u1j" style="margin-left: -10px; margin-right: -10px;">
                                         <div class="ant-col ant-col-24 css-1588u1j"
                                             style="padding-left: 10px; padding-right: 10px;">
@@ -21079,6 +21474,7 @@ function up_user_profile_shortcode()
                         <div class="ant-modal-body">
                             <form class="ant-form ant-form-vertical ant-form-hide-required-mark css-1588u1j" method="post" action="">
                                 <?php wp_nonce_field('update_children_info', 'user_profile_children_nonce'); ?>
+                                <input type="hidden" name="child_id[]" id="child_id" value="">
                                 <div class="">
                                     <div class="text-center">
                                         <h2 class="mb-4 text-xl">Children Informations</h2>
@@ -21202,10 +21598,10 @@ function up_user_profile_shortcode()
                                                                 <div class="ant-select ant-select-lg ant-select-outlined ant-select-in-form-item mt-2 rounded css-1588u1j ant-select-single ant-select-show-arrow">
                                                                     
                                                                         <select name="typeOfCompany" class="ant-select-selection-search ant-select-selector" id="typeOfCompany" value="<?php echo $occupation_info->type_of_company ?? '';?>">
-                                                                            <option value="Government" <?php echo  $occupation_info->type_of_company === "Government"?'selected':''?>>Government</option>
-                                                                            <option value="Private Limited" <?php echo  $occupation_info->type_of_company === "Private Limited"?'selected':''?>>Private Limited</option>
-                                                                            <option value="Public Limited" <?php echo  $occupation_info->type_of_company === "Public Limited"?'selected':''?>>Public Limited</option>
-                                                                            <option value="Foreign or Multinational Com" <?php echo  $occupation_info->type_of_company === "Foreign or Multinational Com"?'selected':''?>>Foreign or Multinational Com</option>
+                                                                            <option value="Government" <?php echo isset($occupation_info) && is_object($occupation_info) && $occupation_info->type_of_company === "Government"?'selected':''?>>Government</option>
+                                                                            <option value="Private Limited" <?php echo isset($occupation_info) && is_object($occupation_info) && $occupation_info->type_of_company === "Private Limited"?'selected':''?>>Private Limited</option>
+                                                                            <option value="Public Limited" <?php echo isset($occupation_info) && is_object($occupation_info) && $occupation_info->type_of_company === "Public Limited"?'selected':''?>>Public Limited</option>
+                                                                            <option value="Foreign or Multinational Com" <?php echo isset($occupation_info) && is_object($occupation_info) && $occupation_info->type_of_company === "Foreign or Multinational Com"?'selected':''?>>Foreign or Multinational Com</option>
                                                                         </select>
                                                                    
                                                                 </div>
@@ -21350,7 +21746,7 @@ function up_user_profile_shortcode()
                                         <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z"></path>
                                     </svg></span></span></button>
                         <div class="ant-modal-body">
-                            <form class="ant-form ant-form-vertical ant-form-hide-required-mark css-1588u1j">
+                            <form class="ant-form ant-form-vertical ant-form-hide-required-mark css-1588u1j" method="post" action="">
                                 <div class="layout">
                                     <div class="ant-row css-1588u1j" style="margin-left: -10px; margin-right: -10px;">
                                         <div class="ant-col ant-col-xs-24 ant-col-md-24 ant-col-xl-24 css-1588u1j" style="padding-left: 10px; padding-right: 10px;">
@@ -21359,7 +21755,7 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-label css-1588u1j"><label for="contactPersonName" class="" title="Contact Person Name">Contact Person Name</label></div>
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
-                                                            <div class="ant-form-item-control-input-content"><input placeholder="Contact Person Name" id="contactPersonName" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="Raihan Hossain"></div>
+                                                            <div class="ant-form-item-control-input-content"><input placeholder="Contact Person Name" id="contactPersonName" name="contactPersonName" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="<?php echo esc_html($contact_person_info['name'] ?? ''); ?>"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -21371,7 +21767,7 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-label css-1588u1j"><label for="contactPersonEmail" class="" title="Contact Person Email ">Contact Person Email </label></div>
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
-                                                            <div class="ant-form-item-control-input-content"><input placeholder="Contact Person Email" id="contactPersonEmail" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="test@gmail.com"></div>
+                                                            <div class="ant-form-item-control-input-content"><input placeholder="Contact Person Email" id="contactPersonEmail" name="contactPersonEmail" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="<?php echo esc_html($contact_person_info['email'] ?? ''); ?>"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -21383,7 +21779,7 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-label css-1588u1j"><label for="contactPersonPhoneNumber" class="" title="Contact Person Phone Number">Contact Person Phone Number</label></div>
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
-                                                            <div class="ant-form-item-control-input-content"><input placeholder="Contact Person Phone Number" id="contactPersonPhoneNumber" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="01863995432"></div>
+                                                            <div class="ant-form-item-control-input-content"><input placeholder="Contact Person Phone Number" id="contactPersonPhoneNumber" name="contactPersonPhoneNumber" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 rounded" type="text" value="<?php echo esc_html($contact_person_info['phone_number'] ?? ''); ?>"></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -21419,7 +21815,9 @@ function up_user_profile_shortcode()
                                         <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z"></path>
                                     </svg></span></span></button>
                         <div class="ant-modal-body">
-                            <form class="ant-form ant-form-vertical ant-form-hide-required-mark css-1588u1j">
+                            <form class="ant-form ant-form-vertical ant-form-hide-required-mark css-1588u1j" method="post" action="">
+                                <?php wp_nonce_field('update_travel_history_info', 'user_profile_travel_history_nonce'); ?>
+                                <input type="hidden" name="travel_id" id="travel_id" value="">
                                 <div class="">
                                     <div class="text-center">
                                         <h2 class="mb-4 text-xl">My Previous Travel History</h2>
@@ -21435,11 +21833,25 @@ function up_user_profile_shortcode()
                                                             <div class="ant-form-item-control-input">
                                                                 <div class="ant-form-item-control-input-content">
                                                                     <div class="ant-select ant-select-lg ant-select-outlined ant-select-in-form-item mt-2 css-1588u1j ant-select-single ant-select-allow-clear ant-select-show-arrow ant-select-show-search">
-                                                                        <div class="ant-select-selector"><span class="ant-select-selection-search"><input type="search" id="fromCountry" autocomplete="off" class="ant-select-selection-search-input" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-owns="fromCountry_list" aria-autocomplete="list" aria-controls="fromCountry_list" value=""></span><span class="ant-select-selection-item" title="Bangladesh">Bangladesh</span></div><span class="ant-select-arrow" unselectable="on" aria-hidden="true" style="user-select: none;"><span role="img" aria-label="down" class="anticon anticon-down ant-select-suffix"><svg viewBox="64 64 896 896" focusable="false" data-icon="down" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                                                                                    <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z"></path>
-                                                                                </svg></span></span><span class="ant-select-clear" unselectable="on" aria-hidden="true" style="user-select: none;"><span role="img" aria-label="close-circle" class="anticon anticon-close-circle"><svg fill-rule="evenodd" viewBox="64 64 896 896" focusable="false" data-icon="close-circle" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                                                                                    <path d="M512 64c247.4 0 448 200.6 448 448S759.4 960 512 960 64 759.4 64 512 264.6 64 512 64zm127.98 274.82h-.04l-.08.06L512 466.75 384.14 338.88c-.04-.05-.06-.06-.08-.06a.12.12 0 00-.07 0c-.03 0-.05.01-.09.05l-45.02 45.02a.2.2 0 00-.05.09.12.12 0 000 .07v.02a.27.27 0 00.06.06L466.75 512 338.88 639.86c-.05.04-.06.06-.06.08a.12.12 0 000 .07c0 .03.01.05.05.09l45.02 45.02a.2.2 0 00.09.05.12.12 0 00.07 0c.02 0 .04-.01.08-.05L512 557.25l127.86 127.87c.04.04.06.05.08.05a.12.12 0 00.07 0c.03 0 .05-.01.09-.05l45.02-45.02a.2.2 0 00.05-.09.12.12 0 000-.07v-.02a.27.27 0 00-.05-.06L557.25 512l127.87-127.86c.04-.04.05-.06.05-.08a.12.12 0 000-.07c0-.03-.01-.05-.05-.09l-45.02-45.02a.2.2 0 00-.09-.05.12.12 0 00-.07 0z"></path>
-                                                                                </svg></span></span>
+                                                                        <select id="fromCountry" name="fromCountry" class="ant-select-selection-search ant-select-selector">
+                                                                                <option value="">Select a country</option>
+                                                                                <?php
+                                                                                // Fetch country list from API
+                                                                                $url = "https://restcountries.com/v3.1/all";
+                                                                                $response = file_get_contents($url);
+                                                                                $countries = json_decode($response, true);
+                                                                                usort($countries, function ($a, $b) {
+                                                                                    return strcmp($a['name']['common'], $b['name']['common']);
+                                                                                });
+                                                                                // Populate country dropdown
+                                                                                foreach ($countries as $country) {
+                                                                                    if (isset($country['name']['common'])) {
+                                                                                        echo "<option value='" . $country['name']['common'] . "'>" . $country['name']['common'] . "</option>";
+                                                                                    }
+                                                                                }
+                                                                                ?>
+                                                                        </select>
+                                                                            
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -21453,9 +21865,9 @@ function up_user_profile_shortcode()
                                                             <div class="ant-form-item-control-input">
                                                                 <div class="ant-form-item-control-input-content">
                                                                     <div class="ant-select ant-select-lg ant-select-outlined ant-select-in-form-item mt-2 css-1588u1j ant-select-single ant-select-allow-clear ant-select-show-arrow ant-select-show-search">
-                                                                        <div class="ant-select-selector"><span class="ant-select-selection-search"><input type="search" id="fromCity" autocomplete="off" class="ant-select-selection-search-input" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-owns="fromCity_list" aria-autocomplete="list" aria-controls="fromCity_list" value=""></span><span class="ant-select-selection-placeholder">Select a country</span></div><span class="ant-select-arrow" unselectable="on" aria-hidden="true" style="user-select: none;"><span role="img" aria-label="down" class="anticon anticon-down ant-select-suffix"><svg viewBox="64 64 896 896" focusable="false" data-icon="down" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                                                                                    <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z"></path>
-                                                                                </svg></span></span>
+                                                                        <select id="fromCity" name="fromCity" class="ant-select-selection-search ant-select-selector">
+                                                                            <option value="">Select a city</option>
+                                                                        </select>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -21474,9 +21886,16 @@ function up_user_profile_shortcode()
                                                             <div class="ant-form-item-control-input">
                                                                 <div class="ant-form-item-control-input-content">
                                                                     <div class="ant-select ant-select-lg ant-select-outlined ant-select-in-form-item mt-2 css-1588u1j ant-select-single ant-select-allow-clear ant-select-show-arrow ant-select-show-search">
-                                                                        <div class="ant-select-selector"><span class="ant-select-selection-search"><input type="search" id="toCountry" autocomplete="off" class="ant-select-selection-search-input" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-owns="toCountry_list" aria-autocomplete="list" aria-controls="toCountry_list" value=""></span><span class="ant-select-selection-placeholder">Select a country</span></div><span class="ant-select-arrow" unselectable="on" aria-hidden="true" style="user-select: none;"><span role="img" aria-label="down" class="anticon anticon-down ant-select-suffix"><svg viewBox="64 64 896 896" focusable="false" data-icon="down" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                                                                                    <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z"></path>
-                                                                                </svg></span></span>
+                                                                    <select id="toCountry" name="toCountry" class="ant-select-selection-search ant-select-selector">
+                                                                                <option value="">Select a country</option>
+                                                                                <?php
+                                                                                foreach ($countries as $country) {
+                                                                                    if (isset($country['name']['common'])) {
+                                                                                        echo "<option value='" . $country['name']['common'] . "'>" . $country['name']['common'] . "</option>";
+                                                                                    }
+                                                                                }
+                                                                                ?>
+                                                                        </select>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -21490,9 +21909,9 @@ function up_user_profile_shortcode()
                                                             <div class="ant-form-item-control-input">
                                                                 <div class="ant-form-item-control-input-content">
                                                                     <div class="ant-select ant-select-lg ant-select-outlined ant-select-in-form-item mt-2 css-1588u1j ant-select-single ant-select-allow-clear ant-select-show-arrow ant-select-show-search">
-                                                                        <div class="ant-select-selector"><span class="ant-select-selection-search"><input type="search" id="toCity" autocomplete="off" class="ant-select-selection-search-input" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-owns="toCity_list" aria-autocomplete="list" aria-controls="toCity_list" value=""></span><span class="ant-select-selection-placeholder">Select a country</span></div><span class="ant-select-arrow" unselectable="on" aria-hidden="true" style="user-select: none;"><span role="img" aria-label="down" class="anticon anticon-down ant-select-suffix"><svg viewBox="64 64 896 896" focusable="false" data-icon="down" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                                                                                    <path d="M884 256h-75c-5.1 0-9.9 2.5-12.9 6.6L512 654.2 227.9 262.6c-3-4.1-7.8-6.6-12.9-6.6h-75c-6.5 0-10.3 7.4-6.5 12.7l352.6 486.1c12.8 17.6 39 17.6 51.7 0l352.6-486.1c3.9-5.3.1-12.7-6.4-12.7z"></path>
-                                                                                </svg></span></span>
+                                                                    <select id="toCity" name="toCity" class="ant-select-selection-search ant-select-selector">
+                                                                            <option value="">Select a city</option>
+                                                                        </select>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -21507,7 +21926,7 @@ function up_user_profile_shortcode()
                                                     <div class="ant-col ant-form-item-label css-1588u1j"><label for="purpose" class="" title="Purpose">Purpose</label></div>
                                                     <div class="ant-col ant-form-item-control css-1588u1j">
                                                         <div class="ant-form-item-control-input">
-                                                            <div class="ant-form-item-control-input-content"><textarea placeholder="purpose" id="purpose" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 w-full rounded"></textarea></div>
+                                                            <div class="ant-form-item-control-input-content"><textarea placeholder="purpose" id="purpose" name="purpose" class="ant-input ant-input-lg css-1588u1j ant-input-outlined mt-2 w-full rounded"></textarea></div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -21532,7 +21951,58 @@ function up_user_profile_shortcode()
             </div>
         </div>
     </div>
+    <script>
+        jQuery(document).ready(function ($) {
+            $("#fromCountry").change(function () {
+                var selectedCountry = $(this).val();
+                console.log(selectedCountry);
+                if (selectedCountry) {
+                    $.ajax({
+                        url: ajax_object.ajax_url, // Use WordPress AJAX
+                        type: "POST",
+                        data: {
+                            action: "get_cities",
+                            country: selectedCountry
+                        },
+                        success: function (response) {
+                            $("#fromCity").html(response);
+                        }
+                    });
+                } else {
+                    $("#fromCity").html("<option value=''>Select a city</option>");
+                }
+            });
+            $("#toCountry").change(function () {
+                var selectedCountry = $(this).val();
+                console.log(selectedCountry);
+                if (selectedCountry) {
+                    $.ajax({
+                        url: ajax_object.ajax_url, // Use WordPress AJAX
+                        type: "POST",
+                        data: {
+                            action: "get_cities",
+                            country: selectedCountry
+                        },
+                        success: function (response) {
+                            $("#toCity").html(response);
+                        }
+                    });
+                } else {
+                    $("#toCity").html("<option value=''>Select a city</option>");
+                }
+            });
+        });
+
+    </script>
     <!-- passport info modal -->
+    <style>
+        .ant-col.ant-form-item-label.css-1588u1j {
+            width: 100%;
+        }
+        .ant-row.ant-form-item-row.css-1588u1j {
+            gap: 0;
+        }
+    </style>
     <div class="ant-modal-root css-1588u1j" id="passportInfoModal" style="display:none;">
         <div class="ant-modal-mask"></div>
         <div tabindex="-1" class="ant-modal-wrap" style="">
@@ -21545,7 +22015,7 @@ function up_user_profile_shortcode()
                         <div class="ant-modal-body">
                             <div class="passport_uploader text-center">
                                 <h2 class="mb-4 text-xl">Upload your Passport</h2><span class="ant-upload-wrapper css-1588u1j ant-upload-picture-card-wrapper">
-                                    <div class="css-1588u1j ant-upload ant-upload-drag"><span tabindex="0" class="ant-upload ant-upload-btn" role="button"><input type="file" accept="image/*" style="display: none;">
+                                    <!-- <div class="css-1588u1j ant-upload ant-upload-drag"><span tabindex="0" class="ant-upload ant-upload-btn" role="button"><input type="file" accept="image/*" style="display: none;">
                                             <div class="ant-upload-drag-container">
                                                 <div class="p-5">
                                                     <div class="mb-2 flex justify-center text-3xl"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 512 512" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
@@ -21557,11 +22027,13 @@ function up_user_profile_shortcode()
                                                 </div>
                                             </div>
                                         </span></div>
-                                    <div class="ant-upload-list ant-upload-list-picture-card"></div>
+                                    <div class="ant-upload-list ant-upload-list-picture-card"></div> -->
                                 </span>
                             </div>
-                            <div class="ant-divider css-1588u1j ant-divider-horizontal ant-divider-with-text ant-divider-with-text-center ant-divider-plain" role="separator"><span class="ant-divider-inner-text">Or Input Manually</span></div>
-                            <form class="ant-form ant-form-vertical ant-form-large css-1588u1j">
+                            <!-- <div class="ant-divider css-1588u1j ant-divider-horizontal ant-divider-with-text ant-divider-with-text-center ant-divider-plain" role="separator"><span class="ant-divider-inner-text">Or Input Manually</span></div> -->
+                            <form class="ant-form ant-form-vertical ant-form-large css-1588u1j" method="post" action="">
+                                <?php wp_nonce_field('update_passport_info', 'user_profile_passport_nonce'); ?>
+                                <input type="hidden" name="passport_id" id="passport_id" value="">
                                 <div class="ant-row css-1588u1j" style="margin-left: -8px; margin-right: -8px; row-gap: 16px;">
                                     <div class="ant-col ant-col-xs-12 css-1588u1j" style="padding-left: 8px; padding-right: 8px;">
                                         <div class="ant-form-item !mb-0 css-1588u1j">
@@ -21569,7 +22041,7 @@ function up_user_profile_shortcode()
                                                 <div class="ant-col ant-form-item-label css-1588u1j"><label for="givenName" class="ant-form-item-required" title="Given Name">Given Name</label></div>
                                                 <div class="ant-col ant-form-item-control css-1588u1j">
                                                     <div class="ant-form-item-control-input">
-                                                        <div class="ant-form-item-control-input-content"><input placeholder="Given name" id="givenName" aria-required="true" class="ant-input ant-input-lg css-1588u1j ant-input-outlined" type="text" value=""></div>
+                                                        <div class="ant-form-item-control-input-content"><input placeholder="Given name" id="givenName" name="givenName" aria-required="true" class="ant-input ant-input-lg css-1588u1j ant-input-outlined" type="text" value=""></div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -21581,7 +22053,7 @@ function up_user_profile_shortcode()
                                                 <div class="ant-col ant-form-item-label css-1588u1j"><label for="surname" class="ant-form-item-required" title="surname">surname</label></div>
                                                 <div class="ant-col ant-form-item-control css-1588u1j">
                                                     <div class="ant-form-item-control-input">
-                                                        <div class="ant-form-item-control-input-content"><input placeholder="Surname" id="surname" aria-required="true" class="ant-input ant-input-lg css-1588u1j ant-input-outlined" type="text" value=""></div>
+                                                        <div class="ant-form-item-control-input-content"><input placeholder="Surname" id="surname" name="surname" aria-required="true" class="ant-input ant-input-lg css-1588u1j ant-input-outlined" type="text" value=""></div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -21593,7 +22065,7 @@ function up_user_profile_shortcode()
                                                 <div class="ant-col ant-form-item-label css-1588u1j"><label for="countryCode" class="ant-form-item-required" title="Country Code">Country Code</label></div>
                                                 <div class="ant-col ant-form-item-control css-1588u1j">
                                                     <div class="ant-form-item-control-input">
-                                                        <div class="ant-form-item-control-input-content"><input placeholder="Country code" id="countryCode" aria-required="true" class="ant-input ant-input-lg css-1588u1j ant-input-outlined" type="text" value=""></div>
+                                                        <div class="ant-form-item-control-input-content"><input placeholder="Country code" id="countryCode" name="countryCode" aria-required="true" class="ant-input ant-input-lg css-1588u1j ant-input-outlined" type="text" value=""></div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -21605,7 +22077,7 @@ function up_user_profile_shortcode()
                                                 <div class="ant-col ant-form-item-label css-1588u1j"><label for="nationality" class="ant-form-item-required" title="nationality">nationality</label></div>
                                                 <div class="ant-col ant-form-item-control css-1588u1j">
                                                     <div class="ant-form-item-control-input">
-                                                        <div class="ant-form-item-control-input-content"><input placeholder="Nationality" id="nationality" aria-required="true" class="ant-input ant-input-lg css-1588u1j ant-input-outlined" type="text" value=""></div>
+                                                        <div class="ant-form-item-control-input-content"><input placeholder="Nationality" id="nationality" name="nationality" aria-required="true" class="ant-input ant-input-lg css-1588u1j ant-input-outlined" type="text" value=""></div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -21617,7 +22089,7 @@ function up_user_profile_shortcode()
                                                 <div class="ant-col ant-form-item-label css-1588u1j"><label for="placeOfBirth" class="ant-form-item-required" title="Place Of Birth">Place Of Birth</label></div>
                                                 <div class="ant-col ant-form-item-control css-1588u1j">
                                                     <div class="ant-form-item-control-input">
-                                                        <div class="ant-form-item-control-input-content"><input placeholder="Place of birth" id="placeOfBirth" aria-required="true" class="ant-input ant-input-lg css-1588u1j ant-input-outlined" type="text" value=""></div>
+                                                        <div class="ant-form-item-control-input-content"><input placeholder="Place of birth" id="placeOfBirth" name="placeOfBirth" aria-required="true" class="ant-input ant-input-lg css-1588u1j ant-input-outlined" type="text" value=""></div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -21631,9 +22103,7 @@ function up_user_profile_shortcode()
                                                     <div class="ant-form-item-control-input">
                                                         <div class="ant-form-item-control-input-content">
                                                             <div class="ant-picker ant-picker-large ant-picker-outlined css-1588u1j w-full">
-                                                                <div class="ant-picker-input"><input aria-invalid="false" autocomplete="off" aria-required="true" size="12" id="dateOfBirth" placeholder="Date of birth" value=""><span class="ant-picker-suffix"><span role="img" aria-label="calendar" class="anticon anticon-calendar"><svg viewBox="64 64 896 896" focusable="false" data-icon="calendar" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                                                                                <path d="M880 184H712v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H384v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H144c-17.7 0-32 14.3-32 32v664c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V216c0-17.7-14.3-32-32-32zm-40 656H184V460h656v380zM184 392V256h128v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h256v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h128v136H184z"></path>
-                                                                            </svg></span></span></div>
+                                                                <div class="ant-picker-input"><input type="date" aria-invalid="false" autocomplete="off" aria-required="true" size="12" id="dateOfBirth" name="dateOfBirth" placeholder="Date of birth" value=""></div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -21649,9 +22119,7 @@ function up_user_profile_shortcode()
                                                     <div class="ant-form-item-control-input">
                                                         <div class="ant-form-item-control-input-content">
                                                             <div class="ant-picker ant-picker-large ant-picker-outlined css-1588u1j w-full">
-                                                                <div class="ant-picker-input"><input aria-invalid="false" autocomplete="off" aria-required="true" size="12" id="issueDate" placeholder="Issue date" value=""><span class="ant-picker-suffix"><span role="img" aria-label="calendar" class="anticon anticon-calendar"><svg viewBox="64 64 896 896" focusable="false" data-icon="calendar" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                                                                                <path d="M880 184H712v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H384v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H144c-17.7 0-32 14.3-32 32v664c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V216c0-17.7-14.3-32-32-32zm-40 656H184V460h656v380zM184 392V256h128v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h256v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h128v136H184z"></path>
-                                                                            </svg></span></span></div>
+                                                                <div class="ant-picker-input"><input type="date" aria-invalid="false" autocomplete="off" aria-required="true" size="12" id="issueDate" name="issueDate" placeholder="Issue date" value=""></div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -21667,9 +22135,7 @@ function up_user_profile_shortcode()
                                                     <div class="ant-form-item-control-input">
                                                         <div class="ant-form-item-control-input-content">
                                                             <div class="ant-picker ant-picker-large ant-picker-outlined css-1588u1j w-full">
-                                                                <div class="ant-picker-input"><input aria-invalid="false" autocomplete="off" aria-required="true" size="12" id="expiryDate" placeholder="Expiry Date" value=""><span class="ant-picker-suffix"><span role="img" aria-label="calendar" class="anticon anticon-calendar"><svg viewBox="64 64 896 896" focusable="false" data-icon="calendar" width="1em" height="1em" fill="currentColor" aria-hidden="true">
-                                                                                <path d="M880 184H712v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H384v-64c0-4.4-3.6-8-8-8h-56c-4.4 0-8 3.6-8 8v64H144c-17.7 0-32 14.3-32 32v664c0 17.7 14.3 32 32 32h736c17.7 0 32-14.3 32-32V216c0-17.7-14.3-32-32-32zm-40 656H184V460h656v380zM184 392V256h128v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h256v48c0 4.4 3.6 8 8 8h56c4.4 0 8-3.6 8-8v-48h128v136H184z"></path>
-                                                                            </svg></span></span></div>
+                                                                <div class="ant-picker-input"><input type="date" aria-invalid="false" autocomplete="off" aria-required="true" size="12" id="expiryDate" name="expiryDate" placeholder="Expiry Date" value=""></div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -21683,7 +22149,7 @@ function up_user_profile_shortcode()
                                                 <div class="ant-col ant-form-item-label css-1588u1j"><label for="passportNumber" class="ant-form-item-required" title="Passport Number">Passport Number</label></div>
                                                 <div class="ant-col ant-form-item-control css-1588u1j">
                                                     <div class="ant-form-item-control-input">
-                                                        <div class="ant-form-item-control-input-content"><input placeholder="Passport number" id="passportNumber" aria-required="true" class="ant-input ant-input-lg css-1588u1j ant-input-outlined" type="text" value=""></div>
+                                                        <div class="ant-form-item-control-input-content"><input placeholder="Passport number" id="passportNumber" name="passportNumber" aria-required="true" class="ant-input ant-input-lg css-1588u1j ant-input-outlined" type="text" value=""></div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -21774,6 +22240,26 @@ function up_user_profile_shortcode()
 
             // Sibling info modal
             $('.sibling_add').on('click', function() {
+                var entryId = $(this).data("id"); // Get entry ID
+                var entryvalues = $(this).data("values"); // Get entry values
+
+                // If entryvalues is an object, no need to parse
+                if (typeof entryvalues === 'string') {
+                    entryvalues = JSON.parse(entryvalues);
+                }
+
+                if(entryvalues){
+                // Set form fields with the corresponding values
+                $('#siblingmodal #name').val(entryvalues.name || '');
+                $('#siblingmodal #siblingRelation').val(entryvalues.relationship || '');
+                $('#siblingmodal #dateOfBirth').val(entryvalues.date_of_birth || '');
+                $('#siblingmodal #presentAddress').val(entryvalues.present_address || '');
+                
+                // Set the sibling ID in the hidden input
+
+                $('#sibling_id').val(entryId);
+                }
+
                 openModal('#siblingmodal');
             });
 
@@ -21808,6 +22294,24 @@ function up_user_profile_shortcode()
 
             // Children info modal
             $('.child_add').on('click', function() {
+                var entryId = $(this).data("id"); // Get entry ID
+                var entryvalues = $(this).data("values"); // Get entry values
+
+                // If entryvalues is an object, no need to parse
+                if (typeof entryvalues === 'string') {
+                    entryvalues = JSON.parse(entryvalues);
+                }
+
+                if(entryvalues){
+
+                // Set form fields with the corresponding values
+                $('#childernmodal #name').val(entryvalues.name || '');
+                $('#childernmodal #dateOfBirth').val(entryvalues.date_of_birth || '');
+                $('#childernmodal #presentAddress').val(entryvalues.present_address || '');
+
+                // Set the child ID in the hidden input
+                $('#child_id').val(entryId);
+                }
                 openModal('#childernmodal');
             });
 
@@ -21864,6 +22368,23 @@ function up_user_profile_shortcode()
 
             // Travel history info modal
             $('.travel_history_add').on('click', function() {
+                var entryId = $(this).data("id"); // Get entry ID
+                var entryvalues = $(this).data("values"); // Get entry values
+
+                // If entryvalues is an object, no need to parse
+                if (typeof entryvalues === 'string') {
+                    entryvalues = JSON.parse(entryvalues);
+                }
+
+                if(entryvalues){
+                // Set form fields with the corresponding values
+                $('#travelHistoryModal #fromCountry').val(entryvalues.from_country || '');
+                $('#travelHistoryModal #fromCity').val(entryvalues.from_city || '');
+                $('#travelHistoryModal #toCountry').val(entryvalues.to_country || '');
+                $('#travelHistoryModal #toCity').val(entryvalues.to_city || '');
+                $('#travelHistoryModal #purpose').val(entryvalues.purpose || '');
+                $('#travel_id').val(entryId);
+                }
                 openModal('#travelHistoryModal');
             });
 
@@ -21883,6 +22404,31 @@ function up_user_profile_shortcode()
 
             // Passport info modal
             $('.passport_add').on('click', function() {
+                var entryId = $(this).data("id"); // Get entry ID
+                var entryvalues = $(this).data("values"); // Get entry values
+
+                // If entryvalues is an object, no need to parse
+                if (typeof entryvalues === 'string') {
+                    entryvalues = JSON.parse(entryvalues);
+                }
+
+                if(entryvalues){
+                // Set form fields with the corresponding values
+                $('#passportInfoModal #givenName').val(entryvalues.given_name || '');
+                $('#passportInfoModal #surname').val(entryvalues.surname || '');
+                $('#passportInfoModal #countryCode').val(entryvalues.country_code || '');
+                $('#passportInfoModal #nationality').val(entryvalues.nationality || '');
+                $('#passportInfoModal #placeOfBirth').val(entryvalues.place_of_birth || '');
+                $('#passportInfoModal #dateOfBirth').val(entryvalues.date_of_birth || '');
+                $('#passportInfoModal #issueDate').val(entryvalues.issue_date || '');
+                $('#passportInfoModal #expiryDate').val(entryvalues.expiry_date || '');
+                $('#passportInfoModal #passportNumber').val(entryvalues.passport_number || '');
+
+                // Set the passport ID in the hidden input
+                $('#passport_id').val(entryId);
+                }
+
+                // Open the modal to display passport information
                 openModal('#passportInfoModal');
             });
 
@@ -21903,6 +22449,41 @@ function up_user_profile_shortcode()
 
         });
     </script>
+<!-- handle delete item -->
+<script>
+jQuery(document).ready(function($) {
+    $(".removeitem").on("click", function() {
+        var table = $(this).data("table"); // Get table name
+        var entryId = $(this).data("id"); // Get entry ID
+
+        if (!confirm("Are you sure you want to delete this entry?")) {
+            return;
+        }
+
+        $.ajax({
+            type: "POST",
+            url: "<?php echo admin_url('admin-ajax.php'); ?>",
+            data: {
+                action: "delete_entry",
+                table: table,
+                entry_id: entryId
+            },
+            success: function(response) {
+                if (response.success) {
+                    alert("Entry deleted successfully.");
+                    location.reload(); // Refresh or remove the element dynamically
+                } else {
+                    alert("Error: " + response.data);
+                }
+            },
+            error: function() {
+                alert("An error occurred.");
+            }
+        });
+    });
+});
+</script>
+
 
 <?php
     return ob_get_clean();
@@ -21911,38 +22492,49 @@ function up_user_profile_shortcode()
 // Register the shortcode
 add_shortcode('user_profile', 'up_user_profile_shortcode');
 
+function delete_entry() {
+    global $wpdb;
 
-add_action('init', 'handle_user_profile_update');
+    // Verify data is provided
+    if (!isset($_POST['table']) || !isset($_POST['entry_id'])) {
+        wp_send_json_error("Invalid request.");
+    }
 
-function handle_user_profile_update()
-{
-    if (isset($_POST['user_profile_nonce']) && wp_verify_nonce($_POST['user_profile_nonce'], 'update_user_profile')) {
-        if (is_user_logged_in()) {
-            $current_user_id = get_current_user_id();
+    $table = sanitize_text_field($_POST['table']);
+    $entry_id = intval($_POST['entry_id']);
 
-            // Sanitize and get user data
-            $first_name = sanitize_text_field($_POST['first_name']);
-            $last_name = sanitize_text_field($_POST['last_name']);
-            $email = sanitize_email($_POST['email']);
-            $phone = sanitize_text_field($_POST['phone']);
-            $website = esc_url_raw($_POST['website']); // Sanitize URL
+    // Define primary key field names for different tables
+    $primary_keys = [
+        'siblings_info' => 'sibling_id',
+        'children_info' => 'child_id',
+        'travel_history_info' => 'travel_id',
+        'passport_info' => 'passport_id',
+    ];
 
-            // Update user meta and user email
-            update_user_meta($current_user_id, 'phone', $phone); // Update phone number
-            update_user_meta($current_user_id, 'website', $website); // Update website link
-            wp_update_user(array(
-                'ID' => $current_user_id,
-                'first_name' => $first_name,
-                'last_name' => $last_name,
-                'user_email' => $email,
-            ));
+    // Check if the table exists in our mapping
+    if (!array_key_exists($table, $primary_keys)) {
+        wp_send_json_error("Invalid table specified.");
+    }
 
-            // Redirect or display a success message
-            wp_redirect($_SERVER['REQUEST_URI']); // Redirect to the same page to avoid resubmission
-            exit;
-        }
+    // Get the primary key field name
+    $primary_key = $primary_keys[$table];
+
+    // Construct full table name with WordPress prefix
+    $table_name = $wpdb->prefix . $table;
+
+    // Delete the entry
+    $deleted = $wpdb->delete($table_name, [$primary_key => $entry_id]);
+
+    if ($deleted) {
+        wp_send_json_success();
+    } else {
+        wp_send_json_error("Failed to delete entry.");
     }
 }
+
+add_action('wp_ajax_delete_entry', 'delete_entry');
+add_action('wp_ajax_nopriv_delete_entry', 'delete_entry'); // Allow for public access if needed
+
 
 
 function generate_add_button($addbtn_class)
@@ -21970,12 +22562,27 @@ function generate_icon_button($dynamic_class = '')
             </button>';
 }
 
-function get_spouse_info_for_current_user()
+function generate_delete_button($table, $id, $dynamic_class = '', $extra_styles = '') {
+    if (!$table || !$id) {
+        return ''; // Ensure table and ID are set
+    }
+
+    ob_start(); ?>
+    <button type="button" class="ant-btn css-1588u1j ant-btn-default removeitem <?php echo esc_attr($dynamic_class); ?>"
+        data-table="<?php echo esc_attr($table); ?>"
+        data-id="<?php echo esc_attr($id); ?>"
+        style="padding: 0px; border: none; <?php echo esc_attr($extra_styles); ?>">
+        <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024" class="text-[20px]" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                <path d="M360 184h-8c4.4 0 8-3.6 8-8v8h304v-8c0 4.4 3.6 8 8 8h-8v72h72v-80c0-35.3-28.7-64-64-64H352c-35.3 0-64 28.7-64 64v80h72v-72zm504 72H160c-17.7 0-32 14.3-32 32v32c0 4.4 3.6 8 8 8h60.4l24.7 523c1.6 34.1 29.8 61 63.9 61h454c34.2 0 62.3-26.8 63.9-61l24.7-523H888c4.4 0 8-3.6 8-8v-32c0-17.7-14.3-32-32-32zM731.3 840H292.7l-24.2-512h487l-24.2 512z"></path>
+        </svg>
+    </button>
+    <?php
+    return ob_get_clean();
+}
+
+function get_spouse_info_for_current_user($user_id)
 {
     global $wpdb;
-
-    // Get the current logged-in user ID
-    $user_id = get_current_user_id();
 
     if (!$user_id) {
         return false; // No user is logged in
@@ -21992,11 +22599,9 @@ function get_spouse_info_for_current_user()
 
     return $spouse_info;
 }
-function get_sibling_info_for_current_user()
+function get_sibling_info_for_current_user($user_id)
 {
     global $wpdb;
-
-    $user_id = get_current_user_id();
 
     if (!$user_id) {
         return [];
@@ -22013,14 +22618,9 @@ function get_sibling_info_for_current_user()
     return $siblings;
 }
 
-function get_parent_info($user_id = null)
+function get_parent_info($user_id)
 {
     global $wpdb;
-
-    // If no user_id is provided, use the current logged-in user's ID
-    if (!$user_id) {
-        $user_id = get_current_user_id();
-    }
 
     if (!$user_id) {
         return null; // No user is logged in
@@ -22072,3 +22672,67 @@ function get_existing_occupation_info($user_id) {
         return false; // No occupation info found
     }
 }
+function get_contact_person_info($user_id) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'professional_contact_info';
+
+    $contact_info = $wpdb->get_row(
+        $wpdb->prepare("SELECT * FROM $table_name WHERE user_id = %d", $user_id),
+        ARRAY_A
+    );
+
+    return $contact_info;
+}
+function get_travel_history($user_id) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'travel_history_info';
+    
+    return $wpdb->get_results($wpdb->prepare(
+        "SELECT * FROM $table_name WHERE user_id = %d ORDER BY created_at DESC", 
+        $user_id
+    ));
+}
+function get_user_other_info($user_id) {
+    global $wpdb;
+
+    // Check if the user ID is valid
+    if (empty($user_id)) {
+        return '';
+    }
+
+    // Define the table name (assuming it is wp_other_info)
+    $table_name = $wpdb->prefix . 'other_info';
+
+    // Fetch the 'others_info' field for the given user_id
+    $result = $wpdb->get_var($wpdb->prepare(
+        "SELECT others_info FROM $table_name WHERE user_id = %d LIMIT 1",
+        $user_id
+    ));
+
+    // Return the fetched information (or empty string if none found)
+    return $result ? esc_textarea($result) : '';
+}
+
+// Function to get all passport information for a user
+function get_user_passport_info($user_id) {
+    global $wpdb;
+
+    // Check if the user ID is valid
+    if (empty($user_id)) {
+        return [];
+    }
+
+    // Define the table name (assuming it is wp_passport_info)
+    $table_name = $wpdb->prefix . 'passport_info';
+
+    // Query to get all passport entries for the user
+    $results = $wpdb->get_results($wpdb->prepare(
+        "SELECT * FROM $table_name WHERE user_id = %d",
+        $user_id
+    ));
+
+    return $results;
+}
+
+
+

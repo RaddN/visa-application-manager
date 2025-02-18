@@ -13,7 +13,34 @@ function ut_display_user_transactions_shortcode() {
     }
 
     global $wpdb;
-    $current_user_id = get_current_user_id(); // Get the current user ID
+    $user_id = get_current_user_id();
+
+    // Check if the user_id from GET is a co-traveler of the current user
+    $co_traveler_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : '';
+    
+    if($co_traveler_id!==0){
+        // Perform a database query to check the co-traveler relationship
+        $query = $wpdb->prepare(
+            "SELECT COUNT(*) FROM wp_co_travelers_info WHERE co_traveler_id = %d AND user_id = %d",
+            $co_traveler_id,
+            $user_id
+        );
+            
+        $count = $wpdb->get_var($query);
+        }else{
+            $count = 0;
+        }
+
+    
+    if (isset($_GET['user_id'])) {
+        if ( current_user_can( 'administrator' ) ) {
+            $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
+        }
+        elseif($count > 0){
+            $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
+        }  
+    }
+    $current_user_id = $user_id; // Get the current user ID
 
     // Query to get the entries for form ID 17, type "payment", and current user ID
     $results = $wpdb->get_results($wpdb->prepare(

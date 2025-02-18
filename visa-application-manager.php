@@ -33,7 +33,30 @@ function visa_dashboard_shortcode($atts) {
     // if ( is_user_logged_in() ) {
         global $wpdb;
 
-        $current_user_id = get_current_user_id() ? get_current_user_id() : 0;
+        $user_id = get_current_user_id();
+
+        // Check if the user_id from GET is a co-traveler of the current user
+        $co_traveler_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : '';
+        
+        // Perform a database query to check the co-traveler relationship
+        $query = $wpdb->prepare(
+            "SELECT COUNT(*) FROM wp_co_travelers_info WHERE co_traveler_id = %d AND user_id = %d",
+            $co_traveler_id,
+            $user_id
+        );
+            
+        $count = $wpdb->get_var($query);
+
+        
+        if (isset($_GET['user_id'])) {
+            if ( current_user_can( 'administrator' ) ) {
+                $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
+            }
+            elseif($count > 0){
+                $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
+            }  
+        }
+        $current_user_id = $user_id;
         $total_applied_visa = $wpdb->get_var( $wpdb->prepare(
             "SELECT COUNT(*) FROM wp_wpforms_entries WHERE user_id = %d AND form_id = %d",
             $current_user_id , intval($atts['application_form_id'])
@@ -486,6 +509,7 @@ include_once 'documents.php';
 include_once 'appointment.php';
 include_once 'checklist.php';
 include_once 'setting.php';
+include_once 'get_cities.php';
 // Create a page with the shortcode
 function visa_dashboard_create_page() {
     $page_title = 'User'; // Ensure the title matches your requirements
@@ -696,7 +720,7 @@ function handle_form_submission() {
 
     $nid = sanitize_text_field($_POST['nid']);
     $address = sanitize_textarea_field($_POST['address']);
-    $user_id = get_current_user_id();
+    $user_id = sanitize_textarea_field($_POST['user_id']);
 
     // Check if record exists for the user
     $table_name = $wpdb->prefix . 'user_info';
@@ -725,4 +749,21 @@ function handle_form_submission() {
 add_action('wp_ajax_save_user_info', 'handle_form_submission');
 add_action('wp_ajax_nopriv_save_user_info', 'handle_form_submission');
 
+
+
+// subscriber only able to access user dashboard
+add_action('after_setup_theme', function() {
+    if (current_user_can('subscriber')) {
+        // Hide the admin bar
+        add_filter('show_admin_bar', '__return_false');
+    }
+});
+
+add_action('admin_init', function() {
+    if (current_user_can('subscriber')) {
+        // Redirect subscribers trying to access wp-admin
+        wp_redirect(home_url('/user/')); // Replace '/user/' with your desired URL
+        exit;
+    }
+});
 

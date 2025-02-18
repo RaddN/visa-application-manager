@@ -9,8 +9,34 @@ function av_display_applied_visas_shortcode($atts)
         'form_submit_page' => 'form', // Default value
     ), $atts);
     global $wpdb;
+    $user_id = get_current_user_id();
 
-    $current_user_id = get_current_user_id() ? get_current_user_id() : 0;
+    // Check if the user_id from GET is a co-traveler of the current user
+    $co_traveler_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : '';
+    
+    if($co_traveler_id!==0){
+        // Perform a database query to check the co-traveler relationship
+        $query = $wpdb->prepare(
+            "SELECT COUNT(*) FROM wp_co_travelers_info WHERE co_traveler_id = %d AND user_id = %d",
+            $co_traveler_id,
+            $user_id
+        );
+            
+        $count = $wpdb->get_var($query);
+        }else{
+            $count = 0;
+        }
+
+    
+    if (isset($_GET['user_id'])) {
+        if ( current_user_can( 'administrator' ) ) {
+            $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
+        }
+        elseif($count > 0){
+            $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
+        }  
+    }
+    $current_user_id = $user_id;
     $total_applied_visa = $wpdb->get_var($wpdb->prepare(
         "SELECT COUNT(*) FROM wp_wpforms_entries WHERE user_id = %d AND form_id = %d",
         $current_user_id,
@@ -9418,7 +9444,7 @@ function av_display_applied_visas_shortcode($atts)
                                         </div>
                                     </div>
                                 </div>
-                                <div class="applied_visa">
+                                <div class="applied_visa not-complete">
                                     <div class="applied_visa_list">
                                         <div class="ant-row ant-row-center css-1588u1j" style="margin-left:-10px;margin-right:-10px;row-gap:20px">
                                             <?php if ($entries_unpaid_visa): ?>
@@ -9515,8 +9541,8 @@ function av_display_applied_visas_shortcode($atts)
                                         </div>
                                     </div>
                                 </div>
-                                <div class="applied_visa">
-                                    <div class="applied_visa_list flex flex-col gap-5">
+                                <div class="applied_visa complete">
+                                    <div class="applied_visa_list flex flex-col gap-5 justify-center items-center">
                                         <div class="css-1588u1j ant-empty">
                                             <div class="ant-empty-image"><svg width="184" height="152" viewBox="0 0 184 152" xmlns="http://www.w3.org/2000/svg">
                                                     <title>empty image</title>
@@ -9535,7 +9561,7 @@ function av_display_applied_visas_shortcode($atts)
                                                         </g>
                                                     </g>
                                                 </svg></div>
-                                            <div class="ant-empty-description">No visa applied.</div>
+                                            <div class="ant-empty-description text-center">No visa applied.</div>
                                         </div>
                                     </div>
                                 </div>
@@ -9546,78 +9572,53 @@ function av_display_applied_visas_shortcode($atts)
         </div>
         </main>
         </div>
-        <script id="__NEXT_DATA__"
-            type="application/json">
-            {
-                "props": {
-                    "pageProps": {}
-                },
-                "page": "/user",
-                "query": {},
-                "buildId": "9fmPZqRL0NhrU0EXE1c_j",
-                "nextExport": true,
-                "autoExport": true,
-                "isFallback": false,
-                "scriptLoader": []
-            }
+        <script>
+            jQuery(document).ready(function($) {
+                function updateInkBar(tabElement) {
+                    var inkBar = $(".ant-tabs-ink-bar");
+                    var tabWidth = tabElement.outerWidth();
+                    var tabPosition = tabElement.position().left;
+
+                    inkBar.css({
+                        "width": tabWidth + "px",
+                        "left": tabPosition + "px",
+                        "transform": "translateX(0%)",
+                        "transition": "left 0.3s ease, width 0.3s ease"
+                    });
+                }
+
+                $(".ant-tabs-tab").on("click", function() {
+                    // Remove active class from all tabs
+                    $(".ant-tabs-tab").removeClass("ant-tabs-tab-active");
+                    // Add active class to the clicked tab
+                    $(this).addClass("ant-tabs-tab-active");
+
+                    // Get the key of the selected tab
+                    var selectedTab = $(this).data("node-key");
+
+                    // Hide all applied visa sections
+                    $(".applied_visa").hide();
+                    // Show the selected section
+                    $("." + selectedTab).fadeIn(200);
+
+                    // Update the ink bar position
+                    updateInkBar($(this));
+                });
+
+                // Initialize: Show only the active tab content on page load
+                $(".applied_visa").hide();
+                $(".ant-tabs-tab-active").each(function() {
+                    $("." + $(this).data("node-key")).show();
+                    updateInkBar($(this)); // Set the ink bar initially
+                });
+            });
         </script>
 
-        <script id="google-analytics-script" data-nscript="afterInteractive">
-            window.dataLayer = window.dataLayer || [];
-
-            function gtag() {
-                dataLayer.push(arguments);
-            }
-            gtag('js', new Date());
-
-            gtag('config', 'G-EBPQ33J7JL');
-        </script>
-        <script id="fb-pixel" data-nscript="afterInteractive">
-            ! function(f, b, e, v, n, t, s) {
-                if (f.fbq) return;
-                n = f.fbq = function() {
-                    n.callMethod ?
-                        n.callMethod.apply(n, arguments) : n.queue.push(arguments)
-                };
-                if (!f._fbq) f._fbq = n;
-                n.push = n;
-                n.loaded = !0;
-                n.version = '2.0';
-                n.queue = [];
-                t = b.createElement(e);
-                t.async = !0;
-                t.src = v;
-                s = b.getElementsByTagName(e)[0];
-                s.parentNode.insertBefore(t, s)
-            }(window, document, 'script',
-                'https://connect.facebook.net/en_US/fbevents.js');
-            fbq('init', '761961522774595');
-            fbq('track', 'PageView');
-        </script>
         <p aria-live="assertive" id="__next-route-announcer__" role="alert"
             style="border: 0px; clip: rect(0px, 0px, 0px, 0px); height: 1px; margin: -1px; overflow: hidden; padding: 0px; position: absolute; top: 0px; width: 1px; white-space: nowrap; overflow-wrap: normal;">
         </p>
-        </next-route-announcer><iframe id="_hjSafeContext_78308674" title="_hjSafeContext" tabindex="-1" aria-hidden="true"
-            src="about:blank"
-            style="display: none !important; width: 1px !important; height: 1px !important; opacity: 0 !important; pointer-events: none !important;"></iframe>
+        </next-route-announcer>
         <div id="veepn-guard-alert"></div>
-        <style>
-            @font-face {
-                font-family: FigtreeVF;
-                src: url(chrome-extension://majdfhpaihoncoakbjgbdhglocklcgno/fonts/FigtreeVF.woff2) format("woff2 supports variations"), url(chrome-extension://majdfhpaihoncoakbjgbdhglocklcgno/fonts/FigtreeVF.woff2) format("woff2-variations");
-                font-weight: 100 1000;
-                font-display: swap
-            }
-        </style>
-        <div id="veepn-breach-alert"></div>
-        <style>
-            @font-face {
-                font-family: FigtreeVF;
-                src: url(chrome-extension://majdfhpaihoncoakbjgbdhglocklcgno/fonts/FigtreeVF.woff2) format("woff2 supports variations"), url(chrome-extension://majdfhpaihoncoakbjgbdhglocklcgno/fonts/FigtreeVF.woff2) format("woff2-variations");
-                font-weight: 100 1000;
-                font-display: swap
-            }
-        </style>
     </body>
 <?php
     return ob_get_clean();
