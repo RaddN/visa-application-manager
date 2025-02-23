@@ -10,7 +10,7 @@
             margin-right: 0 !important;
         }
     </style>
-    <style data-rc-order="prependQueue" data-rc-priority="-999" data-css-hash="_effect-css-1588u1j-antSlideUpOut">
+    <!-- <style data-rc-order="prependQueue" data-rc-priority="-999" data-css-hash="_effect-css-1588u1j-antSlideUpOut">
         @keyframes css-1588u1j-antSlideUpOut {
             0% {
                 transform: scaleY(1);
@@ -443,7 +443,7 @@
         :where(.css-1588u1j).ant-zoom-big-leave {
             animation-timing-function: cubic-bezier(0.78, 0.14, 0.15, 0.86);
         }
-    </style>
+    </style> -->
     <style data-rc-order="prependQueue" data-rc-priority="-999" data-css-hash="10jpo1f" data-token-hash="54mug8">
         :where(.css-1588u1j).ant-steps {
             font-family: var(--font-noto-sans);
@@ -1415,7 +1415,7 @@
             color: rgba(0, 0, 0, 0.25);
         }
     </style>
-    <style data-rc-order="prependQueue" data-rc-priority="-999" data-css-hash="ujlknk" data-token-hash="54mug8">
+    <!-- <style data-rc-order="prependQueue" data-rc-priority="-999" data-css-hash="ujlknk" data-token-hash="54mug8">
         :where(.css-1588u1j).ant-space {
             display: inline-flex;
         }
@@ -1488,8 +1488,8 @@
         :where(.css-1588u1j).ant-space-vertical {
             flex-direction: column;
         }
-    </style>
-    <style data-rc-order="prependQueue" data-rc-priority="-999" data-css-hash="173eb5x" data-token-hash="54mug8">
+    </style> -->
+    <!-- <style data-rc-order="prependQueue" data-rc-priority="-999" data-css-hash="173eb5x" data-token-hash="54mug8">
         :where(.css-1588u1j)[class^="ant-modal"],
         :where(.css-1588u1j)[class*=" ant-modal"] {
             font-family: var(--font-noto-sans);
@@ -1818,8 +1818,8 @@
         :where(.css-1588u1j).ant-zoom-leave {
             animation-timing-function: cubic-bezier(0.78, 0.14, 0.15, 0.86);
         }
-    </style>
-    <style data-rc-order="prependQueue" data-rc-priority="-999" data-css-hash="_effect-css-1588u1j-antFadeIn">
+    </style> -->
+    <!-- <style data-rc-order="prependQueue" data-rc-priority="-999" data-css-hash="_effect-css-1588u1j-antFadeIn">
         @keyframes css-1588u1j-antFadeIn {
             0% {
                 opacity: 0;
@@ -1829,8 +1829,8 @@
                 opacity: 1;
             }
         }
-    </style>
-    <style data-rc-order="prependQueue" data-rc-priority="-999" data-css-hash="_effect-css-1588u1j-antFadeOut">
+    </style> -->
+    <!-- <style data-rc-order="prependQueue" data-rc-priority="-999" data-css-hash="_effect-css-1588u1j-antFadeOut">
         @keyframes css-1588u1j-antFadeOut {
             0% {
                 opacity: 1;
@@ -1840,8 +1840,8 @@
                 opacity: 0;
             }
         }
-    </style>
-    <style data-rc-order="prependQueue" data-rc-priority="-999" data-css-hash="_effect-css-1588u1j-antZoomIn">
+    </style> -->
+    <!-- <style data-rc-order="prependQueue" data-rc-priority="-999" data-css-hash="_effect-css-1588u1j-antZoomIn">
         @keyframes css-1588u1j-antZoomIn {
             0% {
                 transform: scale(0.2);
@@ -1853,8 +1853,8 @@
                 opacity: 1;
             }
         }
-    </style>
-    <style data-rc-order="prependQueue" data-rc-priority="-999" data-css-hash="_effect-css-1588u1j-antZoomOut">
+    </style> -->
+    <!-- <style data-rc-order="prependQueue" data-rc-priority="-999" data-css-hash="_effect-css-1588u1j-antZoomOut">
         @keyframes css-1588u1j-antZoomOut {
             0% {
                 transform: scale(1);
@@ -1865,7 +1865,7 @@
                 opacity: 0;
             }
         }
-    </style>
+    </style> -->
     <style data-rc-order="prependQueue" data-rc-priority="-999" data-css-hash="128buyb" data-token-hash="54mug8">
         :where(.css-1588u1j).ant-ribbon-wrapper {
             font-family: var(--font-noto-sans);

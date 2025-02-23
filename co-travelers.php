@@ -13,28 +13,27 @@ function ct_display_co_travelers_shortcode()
 
     // Check if the user_id from GET is a co-traveler of the current user
     $co_traveler_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : '';
-    
-    if($co_traveler_id!==0){
+
+    if ($co_traveler_id !== 0) {
         // Perform a database query to check the co-traveler relationship
         $query = $wpdb->prepare(
             "SELECT COUNT(*) FROM wp_co_travelers_info WHERE co_traveler_id = %d AND user_id = %d",
             $co_traveler_id,
             $user_id
         );
-            
-        $count = $wpdb->get_var($query);
-        }else{
-            $count = 0;
-        }
 
-    
+        $count = $wpdb->get_var($query);
+    } else {
+        $count = 0;
+    }
+
+
     if (isset($_GET['user_id'])) {
-        if ( current_user_can( 'administrator' ) ) {
+        if (current_user_can('administrator')) {
+            $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
+        } elseif ($count > 0) {
             $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
         }
-        elseif($count > 0){
-            $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
-        }  
     }
 
     // handle form submission

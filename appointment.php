@@ -13,12 +13,43 @@ function ua_display_user_appointments_shortcode()
         return '<p>You need to be logged in to view your appointments.</p>';
     }
 
-    $current_user = wp_get_current_user();
+    global $wpdb;
 
-    // Fetch appointments for the current user
-    // This is a placeholder for your actual logic to retrieve appointments
-    // You might need to replace this with a database query or API call
-    $appointments = get_user_meta($current_user->ID, 'user_appointments', true);
+    $user_id = get_current_user_id();
+
+    // Check if the user_id from GET is a co-traveler of the current user
+    $co_traveler_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : 0;
+
+    if ($co_traveler_id !== 0) {
+        // Perform a database query to check the co-traveler relationship
+        $query = $wpdb->prepare(
+            "SELECT COUNT(*) FROM wp_co_travelers_info WHERE co_traveler_id = %d AND user_id = %d",
+            $co_traveler_id,
+            $user_id
+        );
+
+        $count = $wpdb->get_var($query);
+    } else {
+        $count = 0;
+    }
+
+
+    if (isset($_GET['user_id'])) {
+        if (current_user_can('administrator')) {
+            $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
+        } elseif ($count > 0) {
+            $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
+        }
+    }
+
+    // Query to get all bookings for the current user
+    $query = $wpdb->prepare(
+        "SELECT * FROM wp_bookingpress_appointment_bookings WHERE bookingpress_customer_id = %d",
+        $user_id
+    );
+
+    // Execute the query
+    $results = $wpdb->get_results($query);
 
 
 
@@ -812,28 +843,24 @@ function ua_display_user_appointments_shortcode()
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody class="ant-table-tbody">
-                                                                    <tr class="ant-table-row ant-table-row-level-0"
-                                                                        data-row-key="1135">
-                                                                        <td class="ant-table-cell">1</td>
-                                                                        <td class="ant-table-cell">Raihan Hossain</td>
-                                                                        <td class="ant-table-cell">8801863995432</td>
-                                                                        <td class="ant-table-cell">India</td>
-                                                                        <td class="ant-table-cell">Study Visa</td>
-                                                                        <td class="ant-table-cell">
-                                                                            <p>29.01.2025 (11:30 AM - 12:00 PM)</p>
-                                                                        </td>
-                                                                    </tr>
-                                                                    <tr class="ant-table-row ant-table-row-level-0"
-                                                                        data-row-key="1134">
-                                                                        <td class="ant-table-cell">2</td>
-                                                                        <td class="ant-table-cell">Raihan Hossain</td>
-                                                                        <td class="ant-table-cell">8801863995432</td>
-                                                                        <td class="ant-table-cell">India</td>
-                                                                        <td class="ant-table-cell">Study Visa</td>
-                                                                        <td class="ant-table-cell">
-                                                                            <p>30.01.2025 (10:00 AM - 10:30 AM)</p>
-                                                                        </td>
-                                                                    </tr>
+                                                                    <?php if ($results) {
+                                                                        $index = 1;
+                                                                        foreach ($results as $booking) { ?>
+                                                                            <tr class="ant-table-row ant-table-row-level-0"
+                                                                                data-row-key="1135">
+                                                                                <td class="ant-table-cell"><?php echo $index; ?></td>
+                                                                                <td class="ant-table-cell"><?php echo $booking->bookingpress_customer_name; ?></td>
+                                                                                <td class="ant-table-cell"><?php echo $booking->bookingpress_customer_phone_dial_code . $booking->bookingpress_customer_phone; ?></td>
+                                                                                <td class="ant-table-cell"><?php echo $booking->bookingpress_customer_firstname; ?></td>
+                                                                                <td class="ant-table-cell"><?php echo $booking->bookingpress_customer_lastname; ?></td>
+                                                                                <td class="ant-table-cell">
+                                                                                    <p><?php echo $booking->bookingpress_appointment_date . '( ' . date('g:i A', strtotime($booking->bookingpress_appointment_time)) . ' - ' . date('g:i A', strtotime($booking->bookingpress_appointment_end_time)) . ' )'; ?></p>
+                                                                                </td>
+                                                                            </tr>
+                                                                    <?php
+                                                                            $index++;
+                                                                        }
+                                                                    } ?>
                                                                 </tbody>
                                                             </table>
                                                         </div>
