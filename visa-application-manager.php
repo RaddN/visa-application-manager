@@ -569,7 +569,7 @@ function visa_dashboard_shortcode($atts)
 
 add_shortcode('visa_dashboard', 'visa_dashboard_shortcode');
 
-include_once 'profile.php';
+include_once 'visa_mange_profile.php';
 include_once 'my-applied-visa.php';
 include_once 'prefill-form.php';
 include_once 'transactions.php';
