@@ -58,8 +58,6 @@ function av_display_applied_visas_shortcode($atts)
         return '<p>You need to be logged in to view your applied visas.</p>';
     }
 
-    $current_user = wp_get_current_user();
-
     $results = $wpdb->get_results($wpdb->prepare(
         "SELECT entry_id, fields FROM {$wpdb->prefix}wpforms_entries 
         WHERE form_id = %d AND type = %s AND user_id = %d",

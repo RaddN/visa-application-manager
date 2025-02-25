@@ -131,7 +131,6 @@ function visa_dashboard_shortcode($atts)
         }
     }
 
-    // echo intval($atts['application_form_id']);
     ob_start(); ?>
     <?php include 'head.php'; ?>
 
@@ -582,26 +581,6 @@ include_once 'setting.php';
 include_once 'get_cities.php';
 include_once 'visa-fee-manage/visa-fee-manage.php';
 include_once 'user_documents.php';
-// Create a page with the shortcode
-function visa_dashboard_create_page()
-{
-    $page_title = 'User'; // Ensure the title matches your requirements
-    $page_content = '[visa_dashboard]'; // Shortcode to be executed
-    $page_check = get_page_by_title($page_title);
-
-    if (!isset($page_check->ID)) {
-        $new_page_id = wp_insert_post(array(
-            'post_title' => $page_title,
-            'post_content' => $page_content,
-            'post_status' => 'publish',
-            'post_type' => 'page',
-        ));
-    }
-}
-
-// Hook into the plugin activation
-register_activation_hook(__FILE__, 'visa_dashboard_create_page');
-
 
 // create database table
 function create_user_info_table()
@@ -801,7 +780,7 @@ function create_user_info_table()
     // create table for documents
     $documents_table = $wpdb->prefix . 'per_user_document';
     $sql13 = "CREATE TABLE $documents_table (
-    document_id INT AUTO_INCREMENT PRIMARY KEY,
+    document_id INT AUTO_INCREMENT,
     user_id BIGINT(20) NOT NULL,
     uploader_id BIGINT(20) NOT NULL,
     title VARCHAR(255) NOT NULL,
@@ -899,3 +878,9 @@ function my_plugin_activate() {
 }
 
 register_activation_hook(__FILE__, 'my_plugin_activate');
+
+
+
+if (!function_exists('wp_get_current_user')) {
+    require_once(ABSPATH . 'wp-includes/pluggable.php');
+}

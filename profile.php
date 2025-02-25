@@ -657,8 +657,6 @@ function up_user_profile_shortcode()
         }  
     }
 
-    $current_user = wp_get_current_user();
-
     // Get user meta for phone number
     $phone = get_user_meta($user_id, 'phone', true);
 
@@ -19954,7 +19952,7 @@ function up_user_profile_shortcode()
                                                                             </svg></span>
                                                                         <p class="break-all"><?php
                                                                                                 if (is_user_logged_in()) {
-                                                                                                    echo esc_html(get_user_meta($user_id, 'nickname', true) ?? $current_user->user_email);
+                                                                                                    echo esc_html(get_user_meta($user_id, 'nickname', true) ?? "N/A");
                                                                                                 } else {
                                                                                                     echo 'guest@example.com'; // Optional default email
                                                                                                 }
@@ -20789,7 +20787,7 @@ function up_user_profile_shortcode()
                                                                     for="email" class="" title="Email">Email</label></div>
                                                             <div class="ant-col ant-form-item-control css-1588u1j">
                                                                 <div class="ant-form-item-control-input">
-                                                                    <div class="ant-form-item-control-input-content"><input type="email" name="email" value="<?php echo esc_html(get_user_meta($user_id, 'nickname', true) ?? $current_user->user_email); ?>" required></div>
+                                                                    <div class="ant-form-item-control-input-content"><input type="email" name="email" value="<?php echo esc_html(get_user_meta($user_id, 'nickname', true) ?? "N/A"); ?>" required></div>
                                                                 </div>
                                                             </div>
                                                         </div>

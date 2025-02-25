@@ -22,7 +22,8 @@ if (!defined('ABSPATH')) {
                             } else {
                                 echo 'Guest User';
                             }
-                            ?></h2>
+                            ?>
+                            </h2>
                     <p>Welcome back to the VISAThing Dashboard User</p>
                 </div>
             </div>

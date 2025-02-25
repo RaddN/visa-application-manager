@@ -21,8 +21,8 @@ function us_display_user_settings_shortcode()
         $confirm_password = sanitize_text_field($_POST['confirmPassword']);
 
         if ($new_password === $confirm_password) {
-            $current_user = wp_get_current_user();
-            wp_set_password($new_password, $current_user->ID);
+            $user_id = get_current_user_id();
+            wp_set_password($new_password, $user_id);
             $message = '<p>Your password has been reset successfully!</p>';
         } else {
             $message = '<p>Passwords do not match. Please try again.</p>';

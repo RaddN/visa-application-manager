@@ -19,13 +19,6 @@ function uc_display_user_checklist_shortcode()
         return '<p>You need to be logged in to view your checklist.</p>';
     }
 
-    $current_user = wp_get_current_user();
-
-    // Fetch checklist items for the current user
-    // This is a placeholder for your actual logic to retrieve checklist items
-    // You might need to replace this with a database query or API call
-    $checklist_items = get_user_meta($current_user->ID, 'user_checklist', true);
-
 
 
     ob_start(); ?>
