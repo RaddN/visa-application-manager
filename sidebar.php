@@ -1,3 +1,9 @@
+<?php
+
+// Exit if accessed directly.
+if (!defined('ABSPATH')) {
+    exit;
+}?>
 <style>
     ul.ant-pagination.css-1588u1j {
         display: flex;

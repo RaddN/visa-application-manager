@@ -1,5 +1,10 @@
 <?php
 
+// Exit if accessed directly.
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 // Create a shortcode to display applied visa applications
 function av_display_applied_visas_shortcode($atts)
 {
@@ -16,8 +21,9 @@ function av_display_applied_visas_shortcode($atts)
 
     if ($co_traveler_id !== 0) {
         // Perform a database query to check the co-traveler relationship
+        $table_name = $wpdb->prefix . 'co_travelers_info';
         $query = $wpdb->prepare(
-            "SELECT COUNT(*) FROM wp_co_travelers_info WHERE co_traveler_id = %d AND user_id = %d",
+            "SELECT COUNT(*) FROM $table_name WHERE co_traveler_id = %d AND user_id = %d",
             $co_traveler_id,
             $user_id
         );
@@ -36,13 +42,14 @@ function av_display_applied_visas_shortcode($atts)
         }
     }
     $current_user_id = $user_id;
+    $table_name = $wpdb->prefix . 'wpforms_entries';
     $total_applied_visa = $wpdb->get_var($wpdb->prepare(
-        "SELECT COUNT(*) FROM wp_wpforms_entries WHERE user_id = %d AND form_id = %d",
+        "SELECT COUNT(*) FROM $table_name WHERE user_id = %d AND form_id = %d",
         $current_user_id,
         intval($atts['application_form_id'])
     ));
     $entries_unpaid_visa = $wpdb->get_results($wpdb->prepare(
-        "SELECT entry_id, date_modified FROM wp_wpforms_entries WHERE user_id = %d AND form_id = %d AND type = ''",
+        "SELECT * FROM $table_name WHERE user_id = %d AND form_id = %d AND type = ''",
         $current_user_id,
         intval($atts['application_form_id'])
     ));
@@ -52,6 +59,53 @@ function av_display_applied_visas_shortcode($atts)
     }
 
     $current_user = wp_get_current_user();
+
+    $results = $wpdb->get_results($wpdb->prepare(
+        "SELECT entry_id, fields FROM {$wpdb->prefix}wpforms_entries 
+        WHERE form_id = %d AND type = %s AND user_id = %d",
+        intval($atts['application_form_id']),
+        'payment',
+        $user_id
+    ));
+
+    // Initialize arrays to hold entry IDs and fields
+    $entry_ids = [];
+    $fields_data = [];
+
+    // Loop through the results to extract entry IDs and fields
+    foreach ($results as $row) {
+        $entry_ids[] = $row->entry_id;
+        $fields_data[] = json_decode($row->fields, true); // Decode the JSON fields
+    }
+
+    $table_rows = '';
+
+    foreach ($fields_data as $fields) {
+        // Initialize variables to hold extracted values
+        $amount = 'N/A';
+        $status = 'N/A';
+        $payment_method = 'N/A';
+    
+        // Iterate through the fields to find the necessary values
+        foreach ($fields as $field) {
+            if ($field['name'] === 'Select VISAThing Services') {
+                $amount = isset($field['amount']) ? $field['amount'] : 'N/A'; // Assuming Amount is stored under this name
+            } elseif ($field['name'] === 'visacata') {
+                $status = $field['value']; // Assuming Status is stored under this name
+            } elseif ($field['name'] === 'Stripe Credit Card') {
+                $payment_method = $field['value']; // Assuming Payment Method is stored under this name
+            }
+        }
+    
+        // Create a table row
+        $table_rows .= '<tr>';
+        $table_rows .= '<td class="ant-table-cell">' . esc_html($row->entry_id) . '</td>';
+        $table_rows .= '<td class="ant-table-cell">Processed</td>';
+        $table_rows .= '<td class="ant-table-cell">৳ ' . esc_html($amount) . '</td>';
+        $table_rows .= '<td class="ant-table-cell">' . esc_html($payment_method) . '</td>';
+        $table_rows .= '<td class="ant-table-cell"></td>'; // Replace with actual action
+        $table_rows .= '</tr>';
+    }
 
     ob_start(); ?>
     <?php include 'head.php'; ?>
@@ -9450,8 +9504,25 @@ function av_display_applied_visas_shortcode($atts)
                                                 <?php foreach ($entries_unpaid_visa as $entry): ?>
                                                     <div class="ant-ribbon-wrapper css-1588u1j">
                                                         <div class="applied_visa_card">
-                                                            <div class="title">
-                                                                <p>Applied for Afghanistan Family Visit form Bangladesh</p>
+                                                            <div class="title">                                                                
+                                                                <?php 
+                                                                $going_to = '';
+                                                                $going_form = '';
+                                                                $visa_cata = '';
+                                                                $entry_fields = json_decode($entry->fields, true);
+                                                                // Iterate through the fields to find the relevant values
+                                                                foreach ($entry_fields as $field) {
+                                                                    if ($field['name'] === 'goingto') {
+                                                                        $going_to = $field['value'];
+                                                                    } elseif ($field['name'] === 'goingform') {
+                                                                        $going_form = $field['value'];
+                                                                    } elseif ($field['name'] === 'visacata') {
+                                                                        $visa_cata = $field['value'];
+                                                                    }
+                                                                }
+
+                                                                echo "<p>Applied for {$going_to} {$visa_cata} from {$going_form}</p>";
+                                                                // echo esc_html($entry->fields); ?>                                                                
                                                             </div>
                                                             <div class="content">
                                                                 <div class="id">
@@ -9542,26 +9613,47 @@ function av_display_applied_visas_shortcode($atts)
                                 </div>
                                 <div class="applied_visa complete">
                                     <div class="applied_visa_list flex flex-col gap-5 justify-center items-center">
-                                        <div class="css-1588u1j ant-empty">
-                                            <div class="ant-empty-image"><svg width="184" height="152" viewBox="0 0 184 152" xmlns="http://www.w3.org/2000/svg">
-                                                    <title>empty image</title>
-                                                    <g fill="none" fill-rule="evenodd">
-                                                        <g transform="translate(24 31.67)">
-                                                            <ellipse fill-opacity=".8" fill="#F5F5F7" cx="67.797" cy="106.89" rx="67.797" ry="12.668"></ellipse>
-                                                            <path d="M122.034 69.674L98.109 40.229c-1.148-1.386-2.826-2.225-4.593-2.225h-51.44c-1.766 0-3.444.839-4.592 2.225L13.56 69.674v15.383h108.475V69.674z" fill="#AEB8C2"></path>
-                                                            <path d="M101.537 86.214L80.63 61.102c-1.001-1.207-2.507-1.867-4.048-1.867H31.724c-1.54 0-3.047.66-4.048 1.867L6.769 86.214v13.792h94.768V86.214z" fill="url(#linearGradient-1)" transform="translate(13.56)"></path>
-                                                            <path d="M33.83 0h67.933a4 4 0 0 1 4 4v93.344a4 4 0 0 1-4 4H33.83a4 4 0 0 1-4-4V4a4 4 0 0 1 4-4z" fill="#F5F5F7"></path>
-                                                            <path d="M42.678 9.953h50.237a2 2 0 0 1 2 2V36.91a2 2 0 0 1-2 2H42.678a2 2 0 0 1-2-2V11.953a2 2 0 0 1 2-2zM42.94 49.767h49.713a2.262 2.262 0 1 1 0 4.524H42.94a2.262 2.262 0 0 1 0-4.524zM42.94 61.53h49.713a2.262 2.262 0 1 1 0 4.525H42.94a2.262 2.262 0 0 1 0-4.525zM121.813 105.032c-.775 3.071-3.497 5.36-6.735 5.36H20.515c-3.238 0-5.96-2.29-6.734-5.36a7.309 7.309 0 0 1-.222-1.79V69.675h26.318c2.907 0 5.25 2.448 5.25 5.42v.04c0 2.971 2.37 5.37 5.277 5.37h34.785c2.907 0 5.277-2.421 5.277-5.393V75.1c0-2.972 2.343-5.426 5.25-5.426h26.318v33.569c0 .617-.077 1.216-.221 1.789z" fill="#DCE0E6"></path>
+                                        <?php if ($table_rows !== '') { ?>
+                                            <table style="table-layout: auto;">
+                                                <colgroup></colgroup>
+                                                <thead class="ant-table-thead">
+                                                    <tr>
+                                                        <th class="ant-table-cell" scope="col">Application Code
+                                                        </th>
+                                                        <th class="ant-table-cell" scope="col">status</th>
+                                                        <th class="ant-table-cell" scope="col">Amount</th>
+                                                        <th class="ant-table-cell" scope="col">Payment Method
+                                                        </th>
+                                                        <th class="ant-table-cell" scope="col">Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="ant-table-tbody">
+                                                    <?php
+                                                    echo $table_rows; ?>
+                                                </tbody>
+                                            </table>
+                                        <?php } else { ?>
+                                            <div class="css-1588u1j ant-empty">
+                                                <div class="ant-empty-image"><svg width="184" height="152" viewBox="0 0 184 152" xmlns="http://www.w3.org/2000/svg">
+                                                        <title>empty image</title>
+                                                        <g fill="none" fill-rule="evenodd">
+                                                            <g transform="translate(24 31.67)">
+                                                                <ellipse fill-opacity=".8" fill="#F5F5F7" cx="67.797" cy="106.89" rx="67.797" ry="12.668"></ellipse>
+                                                                <path d="M122.034 69.674L98.109 40.229c-1.148-1.386-2.826-2.225-4.593-2.225h-51.44c-1.766 0-3.444.839-4.592 2.225L13.56 69.674v15.383h108.475V69.674z" fill="#AEB8C2"></path>
+                                                                <path d="M101.537 86.214L80.63 61.102c-1.001-1.207-2.507-1.867-4.048-1.867H31.724c-1.54 0-3.047.66-4.048 1.867L6.769 86.214v13.792h94.768V86.214z" fill="url(#linearGradient-1)" transform="translate(13.56)"></path>
+                                                                <path d="M33.83 0h67.933a4 4 0 0 1 4 4v93.344a4 4 0 0 1-4 4H33.83a4 4 0 0 1-4-4V4a4 4 0 0 1 4-4z" fill="#F5F5F7"></path>
+                                                                <path d="M42.678 9.953h50.237a2 2 0 0 1 2 2V36.91a2 2 0 0 1-2 2H42.678a2 2 0 0 1-2-2V11.953a2 2 0 0 1 2-2zM42.94 49.767h49.713a2.262 2.262 0 1 1 0 4.524H42.94a2.262 2.262 0 0 1 0-4.524zM42.94 61.53h49.713a2.262 2.262 0 1 1 0 4.525H42.94a2.262 2.262 0 0 1 0-4.525zM121.813 105.032c-.775 3.071-3.497 5.36-6.735 5.36H20.515c-3.238 0-5.96-2.29-6.734-5.36a7.309 7.309 0 0 1-.222-1.79V69.675h26.318c2.907 0 5.25 2.448 5.25 5.42v.04c0 2.971 2.37 5.37 5.277 5.37h34.785c2.907 0 5.277-2.421 5.277-5.393V75.1c0-2.972 2.343-5.426 5.25-5.426h26.318v33.569c0 .617-.077 1.216-.221 1.789z" fill="#DCE0E6"></path>
+                                                            </g>
+                                                            <path d="M149.121 33.292l-6.83 2.65a1 1 0 0 1-1.317-1.23l1.937-6.207c-2.589-2.944-4.109-6.534-4.109-10.408C138.802 8.102 148.92 0 161.402 0 173.881 0 184 8.102 184 18.097c0 9.995-10.118 18.097-22.599 18.097-4.528 0-8.744-1.066-12.28-2.902z" fill="#DCE0E6"></path>
+                                                            <g transform="translate(149.65 15.383)" fill="#FFF">
+                                                                <ellipse cx="20.654" cy="3.167" rx="2.849" ry="2.815"></ellipse>
+                                                                <path d="M5.698 5.63H0L2.898.704zM9.259.704h4.985V5.63H9.259z"></path>
+                                                            </g>
                                                         </g>
-                                                        <path d="M149.121 33.292l-6.83 2.65a1 1 0 0 1-1.317-1.23l1.937-6.207c-2.589-2.944-4.109-6.534-4.109-10.408C138.802 8.102 148.92 0 161.402 0 173.881 0 184 8.102 184 18.097c0 9.995-10.118 18.097-22.599 18.097-4.528 0-8.744-1.066-12.28-2.902z" fill="#DCE0E6"></path>
-                                                        <g transform="translate(149.65 15.383)" fill="#FFF">
-                                                            <ellipse cx="20.654" cy="3.167" rx="2.849" ry="2.815"></ellipse>
-                                                            <path d="M5.698 5.63H0L2.898.704zM9.259.704h4.985V5.63H9.259z"></path>
-                                                        </g>
-                                                    </g>
-                                                </svg></div>
-                                            <div class="ant-empty-description text-center">No visa applied.</div>
-                                        </div>
+                                                    </svg></div>
+                                                <div class="ant-empty-description text-center">No visa applied.</div>
+                                            </div>
+                                        <?php } ?>
                                     </div>
                                 </div>
                             </div>

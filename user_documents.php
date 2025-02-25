@@ -1,5 +1,80 @@
 <?php
 
+// Exit if accessed directly.
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+function up_handle_form_per_user_documents()
+{
+    if (isset($_POST['title']) && isset($_FILES['file'])) {
+
+        global $wpdb;
+        $user_id = get_current_user_id();
+
+        // Check if the user_id from GET is a co-traveler of the current user
+        $co_traveler_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : '';
+
+        if ($co_traveler_id !== 0) {
+            // Perform a database query to check the co-traveler relationship
+            $table_name = $wpdb->prefix . 'co_travelers_info';
+            $query = $wpdb->prepare(
+                "SELECT COUNT(*) FROM $table_name WHERE co_traveler_id = %d AND user_id = %d",
+                $co_traveler_id,
+                $user_id
+            );
+
+            $count = $wpdb->get_var($query);
+        } else {
+            $count = 0;
+        }
+
+
+        if (isset($_GET['user_id'])) {
+            if (current_user_can('administrator')) {
+                $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
+            } elseif ($count > 0) {
+                $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
+            }
+        }
+
+        // Sanitize and prepare data
+        $title = sanitize_text_field($_POST['title']);
+        $uploader_id = get_current_user_id(); // Assuming the uploader is the current user
+        $created_at = current_time('mysql');
+
+        // Handle file upload
+        $uploaded_file = $_FILES['file'];
+        $upload_overrides = array('test_form' => false);
+
+        // Move the uploaded file to the WordPress uploads directory
+        $movefile = wp_handle_upload($uploaded_file, $upload_overrides);
+
+        if ($movefile && !isset($movefile['error'])) {
+            // File is successfully uploaded
+            $file_url = $movefile['url'];
+
+            // Insert data into the database
+            $table_name = $wpdb->prefix . 'per_user_document';
+            $wpdb->insert($table_name, array(
+                'title' => $title,
+                'user_id' => $user_id,
+                'uploader_id' => $uploader_id,
+                'file_url' => $file_url, // Store the file URL
+                'created_at' => $created_at,
+                'updated_at' => $created_at,
+            ));
+
+            // Optionally, you can redirect or display a success message
+            wp_safe_redirect($_SERVER['REQUEST_URI']);
+            exit;
+        } else {
+        }
+    }
+}
+
+// Hook to process before headers are sent
+add_action('template_redirect', 'up_handle_form_per_user_documents');
 // Create a shortcode to display co-travelers
 function ud_display_per_user_documents_shortcode()
 {
@@ -15,8 +90,9 @@ function ud_display_per_user_documents_shortcode()
 
     if ($co_traveler_id !== 0) {
         // Perform a database query to check the co-traveler relationship
+        $table_name = $wpdb->prefix . 'co_travelers_info';
         $query = $wpdb->prepare(
-            "SELECT COUNT(*) FROM wp_co_travelers_info WHERE co_traveler_id = %d AND user_id = %d",
+            "SELECT COUNT(*) FROM $table_name WHERE co_traveler_id = %d AND user_id = %d",
             $co_traveler_id,
             $user_id
         );
@@ -34,10 +110,12 @@ function ud_display_per_user_documents_shortcode()
             $user_id = intval($_GET['user_id']); // Sanitize to ensure it's an integer
         }
     }
+    $documents = get_user_documents($user_id);
+
+    ob_start();
 
 
-
-    ob_start(); ?>
+?>
     <?php include 'head.php'; ?>
 
     <body>
@@ -4418,6 +4496,674 @@ function ud_display_per_user_documents_shortcode()
                         }
                     }
                 </style>
+                <style data-rc-order="prependQueue" data-rc-priority="-1000" data-css-hash="nffb1q" data-token-hash="54mug8">
+                    :where(.css-1588u1j)[class^="ant-form"],
+                    :where(.css-1588u1j)[class*=" ant-form"] {
+                        font-family: var(--font-noto-sans);
+                        font-size: 14px;
+                        box-sizing: border-box;
+                    }
+
+                    :where(.css-1588u1j)[class^="ant-form"]::before,
+                    :where(.css-1588u1j)[class*=" ant-form"]::before,
+                    :where(.css-1588u1j)[class^="ant-form"]::after,
+                    :where(.css-1588u1j)[class*=" ant-form"]::after {
+                        box-sizing: border-box;
+                    }
+
+                    :where(.css-1588u1j)[class^="ant-form"] [class^="ant-form"],
+                    :where(.css-1588u1j)[class*=" ant-form"] [class^="ant-form"],
+                    :where(.css-1588u1j)[class^="ant-form"] [class*=" ant-form"],
+                    :where(.css-1588u1j)[class*=" ant-form"] [class*=" ant-form"] {
+                        box-sizing: border-box;
+                    }
+
+                    :where(.css-1588u1j)[class^="ant-form"] [class^="ant-form"]::before,
+                    :where(.css-1588u1j)[class*=" ant-form"] [class^="ant-form"]::before,
+                    :where(.css-1588u1j)[class^="ant-form"] [class*=" ant-form"]::before,
+                    :where(.css-1588u1j)[class*=" ant-form"] [class*=" ant-form"]::before,
+                    :where(.css-1588u1j)[class^="ant-form"] [class^="ant-form"]::after,
+                    :where(.css-1588u1j)[class*=" ant-form"] [class^="ant-form"]::after,
+                    :where(.css-1588u1j)[class^="ant-form"] [class*=" ant-form"]::after,
+                    :where(.css-1588u1j)[class*=" ant-form"] [class*=" ant-form"]::after {
+                        box-sizing: border-box;
+                    }
+
+                    :where(.css-1588u1j).ant-form {
+                        box-sizing: border-box;
+                        margin: 0;
+                        padding: 0;
+                        color: rgba(0, 0, 0, 0.88);
+                        font-size: 14px;
+                        line-height: 1.5714285714285714;
+                        list-style: none;
+                        font-family: var(--font-noto-sans);
+                    }
+
+                    :where(.css-1588u1j).ant-form legend {
+                        display: block;
+                        width: 100%;
+                        margin-bottom: 24px;
+                        padding: 0;
+                        color: rgba(0, 0, 0, 0.45);
+                        font-size: 16px;
+                        line-height: inherit;
+                        border: 0;
+                        border-bottom: 1px solid #d9d9d9;
+                    }
+
+                    :where(.css-1588u1j).ant-form input[type="search"] {
+                        box-sizing: border-box;
+                    }
+
+                    :where(.css-1588u1j).ant-form input[type="radio"],
+                    :where(.css-1588u1j).ant-form input[type="checkbox"] {
+                        line-height: normal;
+                    }
+
+                    :where(.css-1588u1j).ant-form input[type="file"] {
+                        display: block;
+                    }
+
+                    :where(.css-1588u1j).ant-form input[type="range"] {
+                        display: block;
+                        width: 100%;
+                    }
+
+                    :where(.css-1588u1j).ant-form select[multiple],
+                    :where(.css-1588u1j).ant-form select[size] {
+                        height: auto;
+                    }
+
+                    :where(.css-1588u1j).ant-form input[type='file']:focus,
+                    :where(.css-1588u1j).ant-form input[type='radio']:focus,
+                    :where(.css-1588u1j).ant-form input[type='checkbox']:focus {
+                        outline: 0;
+                        box-shadow: 0 0 0 2px transparent;
+                    }
+
+                    :where(.css-1588u1j).ant-form output {
+                        display: block;
+                        padding-top: 15px;
+                        color: rgba(0, 0, 0, 0.88);
+                        font-size: 14px;
+                        line-height: 1.5714285714285714;
+                    }
+
+                    :where(.css-1588u1j).ant-form .ant-form-text {
+                        display: inline-block;
+                        padding-inline-end: 12px;
+                    }
+
+                    :where(.css-1588u1j).ant-form-small .ant-form-item .ant-form-item-label>label {
+                        height: 24px;
+                    }
+
+                    :where(.css-1588u1j).ant-form-small .ant-form-item .ant-form-item-control-input {
+                        min-height: 24px;
+                    }
+
+                    :where(.css-1588u1j).ant-form-large .ant-form-item .ant-form-item-label>label {
+                        height: 40px;
+                    }
+
+                    :where(.css-1588u1j).ant-form-large .ant-form-item .ant-form-item-control-input {
+                        min-height: 40px;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item {
+                        box-sizing: border-box;
+                        margin: 0;
+                        padding: 0;
+                        color: rgba(0, 0, 0, 0.88);
+                        font-size: 14px;
+                        line-height: 1.5714285714285714;
+                        list-style: none;
+                        font-family: var(--font-noto-sans);
+                        margin-bottom: 24px;
+                        vertical-align: top;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item-with-help {
+                        transition: none;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item-hidden,
+                    :where(.css-1588u1j).ant-form-item-hidden.ant-row {
+                        display: none;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item-has-warning .ant-form-item-split {
+                        color: #ff4d4f;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item-has-error .ant-form-item-split {
+                        color: #faad14;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-label {
+                        flex-grow: 0;
+                        overflow: hidden;
+                        white-space: nowrap;
+                        text-align: end;
+                        vertical-align: middle;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-label-left {
+                        text-align: start;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-label-wrap {
+                        overflow: unset;
+                        line-height: 1.5714285714285714;
+                        white-space: unset;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-label>label {
+                        position: relative;
+                        display: inline-flex;
+                        align-items: center;
+                        max-width: 100%;
+                        height: 32px;
+                        color: rgba(0, 0, 0, 0.88);
+                        font-size: 14px;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-label>label>.anticon {
+                        font-size: 14px;
+                        vertical-align: top;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-label>label.ant-form-item-required:not(.ant-form-item-required-mark-optional)::before {
+                        display: inline-block;
+                        margin-inline-end: 4px;
+                        color: #ff4d4f;
+                        font-size: 14px;
+                        font-family: SimSun, sans-serif;
+                        line-height: 1;
+                        content: "*";
+                    }
+
+                    .ant-form-hide-required-mark :where(.css-1588u1j).ant-form-item .ant-form-item-label>label.ant-form-item-required:not(.ant-form-item-required-mark-optional)::before {
+                        display: none;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-label>label .ant-form-item-optional {
+                        display: inline-block;
+                        margin-inline-start: 4px;
+                        color: rgba(0, 0, 0, 0.45);
+                    }
+
+                    .ant-form-hide-required-mark :where(.css-1588u1j).ant-form-item .ant-form-item-label>label .ant-form-item-optional {
+                        display: none;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-label>label .ant-form-item-tooltip {
+                        color: rgba(0, 0, 0, 0.45);
+                        cursor: help;
+                        writing-mode: horizontal-tb;
+                        margin-inline-start: 4px;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-label>label::after {
+                        content: ":";
+                        position: relative;
+                        margin-block: 0;
+                        margin-inline-start: 2px;
+                        margin-inline-end: 8px;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-label>label.ant-form-item-no-colon::after {
+                        content: "\a0";
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-control {
+                        --ant-display: flex;
+                        flex-direction: column;
+                        flex-grow: 1;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-control:first-child:not([class^="'ant-col-'"]):not([class*="' ant-col-'"]) {
+                        width: 100%;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-control-input {
+                        position: relative;
+                        display: flex;
+                        align-items: center;
+                        min-height: 32px;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-control-input-content {
+                        flex: auto;
+                        max-width: 100%;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-explain,
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-extra {
+                        clear: both;
+                        color: rgba(0, 0, 0, 0.45);
+                        font-size: 14px;
+                        line-height: 1.5714285714285714;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-explain-connected {
+                        width: 100%;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-extra {
+                        min-height: 24px;
+                        transition: color 0.2s cubic-bezier(0.215, 0.61, 0.355, 1);
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-explain-error {
+                        color: #ff4d4f;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-explain-warning {
+                        color: #faad14;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item-with-help .ant-form-item-explain {
+                        height: auto;
+                        opacity: 1;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-feedback-icon {
+                        font-size: 14px;
+                        text-align: center;
+                        visibility: visible;
+                        animation-name: css-1588u1j-antZoomIn;
+                        animation-duration: 0.2s;
+                        animation-timing-function: cubic-bezier(0.12, 0.4, 0.29, 1.46);
+                        pointer-events: none;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-feedback-icon-success {
+                        color: #52c41a;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-feedback-icon-error {
+                        color: #ff4d4f;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-feedback-icon-warning {
+                        color: #faad14;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item .ant-form-item-feedback-icon-validating {
+                        color: #2f3268;
+                    }
+
+                    :where(.css-1588u1j).ant-form-show-help {
+                        transition: opacity 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+                    }
+
+                    :where(.css-1588u1j).ant-form-show-help-appear,
+                    :where(.css-1588u1j).ant-form-show-help-enter {
+                        opacity: 0;
+                    }
+
+                    :where(.css-1588u1j).ant-form-show-help-appear-active,
+                    :where(.css-1588u1j).ant-form-show-help-enter-active {
+                        opacity: 1;
+                    }
+
+                    :where(.css-1588u1j).ant-form-show-help-leave {
+                        opacity: 1;
+                    }
+
+                    :where(.css-1588u1j).ant-form-show-help-leave-active {
+                        opacity: 0;
+                    }
+
+                    :where(.css-1588u1j).ant-form-show-help .ant-form-show-help-item {
+                        overflow: hidden;
+                        transition: height 0.3s cubic-bezier(0.645, 0.045, 0.355, 1), opacity 0.3s cubic-bezier(0.645, 0.045, 0.355, 1), transform 0.3s cubic-bezier(0.645, 0.045, 0.355, 1) !important;
+                    }
+
+                    :where(.css-1588u1j).ant-form-show-help .ant-form-show-help-item.ant-form-show-help-item-appear,
+                    :where(.css-1588u1j).ant-form-show-help .ant-form-show-help-item.ant-form-show-help-item-enter {
+                        transform: translateY(-5px);
+                        opacity: 0;
+                    }
+
+                    :where(.css-1588u1j).ant-form-show-help .ant-form-show-help-item.ant-form-show-help-item-appear-active,
+                    :where(.css-1588u1j).ant-form-show-help .ant-form-show-help-item.ant-form-show-help-item-enter-active {
+                        transform: translateY(0);
+                        opacity: 1;
+                    }
+
+                    :where(.css-1588u1j).ant-form-show-help .ant-form-show-help-item.ant-form-show-help-item-leave-active {
+                        transform: translateY(-5px);
+                    }
+
+                    :where(.css-1588u1j).ant-form-horizontal .ant-form-item-label {
+                        flex-grow: 0;
+                    }
+
+                    :where(.css-1588u1j).ant-form-horizontal .ant-form-item-control {
+                        flex: 1 1 0;
+                        min-width: 0;
+                    }
+
+                    :where(.css-1588u1j).ant-form-horizontal .ant-form-item-label[class$='-24']+.ant-form-item-control,
+                    :where(.css-1588u1j).ant-form-horizontal .ant-form-item-label[class*='-24 ']+.ant-form-item-control {
+                        min-width: unset;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item-horizontal .ant-form-item-label {
+                        flex-grow: 0;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item-horizontal .ant-form-item-control {
+                        flex: 1 1 0;
+                        min-width: 0;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item-horizontal .ant-form-item-label[class$='-24']+.ant-form-item-control,
+                    :where(.css-1588u1j).ant-form-item-horizontal .ant-form-item-label[class*='-24 ']+.ant-form-item-control {
+                        min-width: unset;
+                    }
+
+                    :where(.css-1588u1j).ant-form-inline {
+                        display: flex;
+                        flex-wrap: wrap;
+                    }
+
+                    :where(.css-1588u1j).ant-form-inline .ant-form-item {
+                        flex: none;
+                        margin-inline-end: 16px;
+                        margin-bottom: 0;
+                    }
+
+                    :where(.css-1588u1j).ant-form-inline .ant-form-item-row {
+                        flex-wrap: nowrap;
+                    }
+
+                    :where(.css-1588u1j).ant-form-inline .ant-form-item>.ant-form-item-label,
+                    :where(.css-1588u1j).ant-form-inline .ant-form-item>.ant-form-item-control {
+                        display: inline-block;
+                        vertical-align: top;
+                    }
+
+                    :where(.css-1588u1j).ant-form-inline .ant-form-item>.ant-form-item-label {
+                        flex: none;
+                    }
+
+                    :where(.css-1588u1j).ant-form-inline .ant-form-item .ant-form-text {
+                        display: inline-block;
+                    }
+
+                    :where(.css-1588u1j).ant-form-inline .ant-form-item .ant-form-item-has-feedback {
+                        display: inline-block;
+                    }
+
+                    :where(.css-1588u1j).ant-form-vertical .ant-form-item:not(.ant-form-item-horizontal) .ant-form-item-row {
+                        flex-direction: column;
+                    }
+
+                    :where(.css-1588u1j).ant-form-vertical .ant-form-item:not(.ant-form-item-horizontal) .ant-form-item-label>label {
+                        height: auto;
+                    }
+
+                    :where(.css-1588u1j).ant-form-vertical .ant-form-item:not(.ant-form-item-horizontal) .ant-form-item-control {
+                        width: 100%;
+                    }
+
+                    :where(.css-1588u1j).ant-form-vertical .ant-form-item:not(.ant-form-item-horizontal) .ant-form-item-label,
+                    :where(.css-1588u1j).ant-form-vertical .ant-form-item:not(.ant-form-item-horizontal) .ant-col-24.ant-form-item-label,
+                    :where(.css-1588u1j).ant-form-vertical .ant-form-item:not(.ant-form-item-horizontal) .ant-col-xl-24.ant-form-item-label {
+                        padding: 0 0 8px;
+                        margin: 0;
+                        white-space: initial;
+                        text-align: start;
+                    }
+
+                    :where(.css-1588u1j).ant-form-vertical .ant-form-item:not(.ant-form-item-horizontal) .ant-form-item-label>label,
+                    :where(.css-1588u1j).ant-form-vertical .ant-form-item:not(.ant-form-item-horizontal) .ant-col-24.ant-form-item-label>label,
+                    :where(.css-1588u1j).ant-form-vertical .ant-form-item:not(.ant-form-item-horizontal) .ant-col-xl-24.ant-form-item-label>label {
+                        margin: 0;
+                    }
+
+                    :where(.css-1588u1j).ant-form-vertical .ant-form-item:not(.ant-form-item-horizontal) .ant-form-item-label>label::after,
+                    :where(.css-1588u1j).ant-form-vertical .ant-form-item:not(.ant-form-item-horizontal) .ant-col-24.ant-form-item-label>label::after,
+                    :where(.css-1588u1j).ant-form-vertical .ant-form-item:not(.ant-form-item-horizontal) .ant-col-xl-24.ant-form-item-label>label::after {
+                        visibility: hidden;
+                    }
+
+                    @media (max-width: 575px) {
+                        :where(.css-1588u1j).ant-form-item .ant-form-item-label {
+                            padding: 0 0 8px;
+                            margin: 0;
+                            white-space: initial;
+                            text-align: start;
+                        }
+
+                        :where(.css-1588u1j).ant-form-item .ant-form-item-label>label {
+                            margin: 0;
+                        }
+
+                        :where(.css-1588u1j).ant-form-item .ant-form-item-label>label::after {
+                            visibility: hidden;
+                        }
+
+                        :where(.css-1588u1j).ant-form:not(.ant-form-inline) .ant-form-item {
+                            flex-wrap: wrap;
+                        }
+
+                        :where(.css-1588u1j).ant-form:not(.ant-form-inline) .ant-form-item .ant-form-item-label:not([class*=" ant-col-xs"]),
+                        :where(.css-1588u1j).ant-form:not(.ant-form-inline) .ant-form-item .ant-form-item-control:not([class*=" ant-col-xs"]) {
+                            flex: 0 0 100%;
+                            max-width: 100%;
+                        }
+
+                        :where(.css-1588u1j).ant-form .ant-form-item:not(.ant-form-item-horizontal) .ant-col-xs-24.ant-form-item-label {
+                            padding: 0 0 8px;
+                            margin: 0;
+                            white-space: initial;
+                            text-align: start;
+                        }
+
+                        :where(.css-1588u1j).ant-form .ant-form-item:not(.ant-form-item-horizontal) .ant-col-xs-24.ant-form-item-label>label {
+                            margin: 0;
+                        }
+
+                        :where(.css-1588u1j).ant-form .ant-form-item:not(.ant-form-item-horizontal) .ant-col-xs-24.ant-form-item-label>label::after {
+                            visibility: hidden;
+                        }
+                    }
+
+                    @media (max-width: 767px) {
+                        :where(.css-1588u1j).ant-form .ant-form-item:not(.ant-form-item-horizontal) .ant-col-sm-24.ant-form-item-label {
+                            padding: 0 0 8px;
+                            margin: 0;
+                            white-space: initial;
+                            text-align: start;
+                        }
+
+                        :where(.css-1588u1j).ant-form .ant-form-item:not(.ant-form-item-horizontal) .ant-col-sm-24.ant-form-item-label>label {
+                            margin: 0;
+                        }
+
+                        :where(.css-1588u1j).ant-form .ant-form-item:not(.ant-form-item-horizontal) .ant-col-sm-24.ant-form-item-label>label::after {
+                            visibility: hidden;
+                        }
+                    }
+
+                    @media (max-width: 991px) {
+                        :where(.css-1588u1j).ant-form .ant-form-item:not(.ant-form-item-horizontal) .ant-col-md-24.ant-form-item-label {
+                            padding: 0 0 8px;
+                            margin: 0;
+                            white-space: initial;
+                            text-align: start;
+                        }
+
+                        :where(.css-1588u1j).ant-form .ant-form-item:not(.ant-form-item-horizontal) .ant-col-md-24.ant-form-item-label>label {
+                            margin: 0;
+                        }
+
+                        :where(.css-1588u1j).ant-form .ant-form-item:not(.ant-form-item-horizontal) .ant-col-md-24.ant-form-item-label>label::after {
+                            visibility: hidden;
+                        }
+                    }
+
+                    @media (max-width: 1199px) {
+                        :where(.css-1588u1j).ant-form .ant-form-item:not(.ant-form-item-horizontal) .ant-col-lg-24.ant-form-item-label {
+                            padding: 0 0 8px;
+                            margin: 0;
+                            white-space: initial;
+                            text-align: start;
+                        }
+
+                        :where(.css-1588u1j).ant-form .ant-form-item:not(.ant-form-item-horizontal) .ant-col-lg-24.ant-form-item-label>label {
+                            margin: 0;
+                        }
+
+                        :where(.css-1588u1j).ant-form .ant-form-item:not(.ant-form-item-horizontal) .ant-col-lg-24.ant-form-item-label>label::after {
+                            visibility: hidden;
+                        }
+                    }
+
+                    :where(.css-1588u1j).ant-form-item-vertical .ant-form-item-row {
+                        flex-direction: column;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item-vertical .ant-form-item-label>label {
+                        height: auto;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item-vertical .ant-form-item-control {
+                        width: 100%;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item-vertical .ant-form-item-label,
+                    :where(.css-1588u1j).ant-col-24.ant-form-item-label,
+                    :where(.css-1588u1j).ant-col-xl-24.ant-form-item-label {
+                        padding: 0 0 8px;
+                        margin: 0;
+                        white-space: initial;
+                        text-align: start;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item-vertical .ant-form-item-label>label,
+                    :where(.css-1588u1j).ant-col-24.ant-form-item-label>label,
+                    :where(.css-1588u1j).ant-col-xl-24.ant-form-item-label>label {
+                        margin: 0;
+                    }
+
+                    :where(.css-1588u1j).ant-form-item-vertical .ant-form-item-label>label::after,
+                    :where(.css-1588u1j).ant-col-24.ant-form-item-label>label::after,
+                    :where(.css-1588u1j).ant-col-xl-24.ant-form-item-label>label::after {
+                        visibility: hidden;
+                    }
+
+                    @media (max-width: 575px) {
+                        :where(.css-1588u1j).ant-form-item .ant-form-item-label {
+                            padding: 0 0 8px;
+                            margin: 0;
+                            white-space: initial;
+                            text-align: start;
+                        }
+
+                        :where(.css-1588u1j).ant-form-item .ant-form-item-label>label {
+                            margin: 0;
+                        }
+
+                        :where(.css-1588u1j).ant-form-item .ant-form-item-label>label::after {
+                            visibility: hidden;
+                        }
+
+                        :where(.css-1588u1j).ant-form:not(.ant-form-inline) .ant-form-item {
+                            flex-wrap: wrap;
+                        }
+
+                        :where(.css-1588u1j).ant-form:not(.ant-form-inline) .ant-form-item .ant-form-item-label:not([class*=" ant-col-xs"]),
+                        :where(.css-1588u1j).ant-form:not(.ant-form-inline) .ant-form-item .ant-form-item-control:not([class*=" ant-col-xs"]) {
+                            flex: 0 0 100%;
+                            max-width: 100%;
+                        }
+
+                        :where(.css-1588u1j).ant-form-item .ant-col-xs-24.ant-form-item-label {
+                            padding: 0 0 8px;
+                            margin: 0;
+                            white-space: initial;
+                            text-align: start;
+                        }
+
+                        :where(.css-1588u1j).ant-form-item .ant-col-xs-24.ant-form-item-label>label {
+                            margin: 0;
+                        }
+
+                        :where(.css-1588u1j).ant-form-item .ant-col-xs-24.ant-form-item-label>label::after {
+                            visibility: hidden;
+                        }
+                    }
+
+                    @media (max-width: 767px) {
+                        :where(.css-1588u1j).ant-form-item .ant-col-sm-24.ant-form-item-label {
+                            padding: 0 0 8px;
+                            margin: 0;
+                            white-space: initial;
+                            text-align: start;
+                        }
+
+                        :where(.css-1588u1j).ant-form-item .ant-col-sm-24.ant-form-item-label>label {
+                            margin: 0;
+                        }
+
+                        :where(.css-1588u1j).ant-form-item .ant-col-sm-24.ant-form-item-label>label::after {
+                            visibility: hidden;
+                        }
+                    }
+
+                    @media (max-width: 991px) {
+                        :where(.css-1588u1j).ant-form-item .ant-col-md-24.ant-form-item-label {
+                            padding: 0 0 8px;
+                            margin: 0;
+                            white-space: initial;
+                            text-align: start;
+                        }
+
+                        :where(.css-1588u1j).ant-form-item .ant-col-md-24.ant-form-item-label>label {
+                            margin: 0;
+                        }
+
+                        :where(.css-1588u1j).ant-form-item .ant-col-md-24.ant-form-item-label>label::after {
+                            visibility: hidden;
+                        }
+                    }
+
+                    @media (max-width: 1199px) {
+                        :where(.css-1588u1j).ant-form-item .ant-col-lg-24.ant-form-item-label {
+                            padding: 0 0 8px;
+                            margin: 0;
+                            white-space: initial;
+                            text-align: start;
+                        }
+
+                        :where(.css-1588u1j).ant-form-item .ant-col-lg-24.ant-form-item-label>label {
+                            margin: 0;
+                        }
+
+                        :where(.css-1588u1j).ant-form-item .ant-col-lg-24.ant-form-item-label>label::after {
+                            visibility: hidden;
+                        }
+                    }
+
+                    :where(.css-1588u1j).ant-form .ant-motion-collapse-legacy {
+                        overflow: hidden;
+                    }
+
+                    :where(.css-1588u1j).ant-form .ant-motion-collapse-legacy-active {
+                        transition: height 0.2s cubic-bezier(0.645, 0.045, 0.355, 1), opacity 0.2s cubic-bezier(0.645, 0.045, 0.355, 1) !important;
+                    }
+
+                    :where(.css-1588u1j).ant-form .ant-motion-collapse {
+                        overflow: hidden;
+                        transition: height 0.2s cubic-bezier(0.645, 0.045, 0.355, 1), opacity 0.2s cubic-bezier(0.645, 0.045, 0.355, 1) !important;
+                    }
+                </style>
                 <div class="ant-layout ant-layout-has-sider css-1588u1j" style="min-height:100vh">
                     <?php include 'header.php';
                     include 'sidebar.php';
@@ -4430,10 +5176,17 @@ function ud_display_per_user_documents_shortcode()
                                         <div class="w-[35px]"><button type="button" class="ant-btn css-1588u1j ant-btn-primary ant-btn-icon-only !flex !h-auto items-center justify-center rounded-sm bg-[var(--primary-500)] text-white"><span class="ant-btn-icon"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 448 512" height="18" width="18" xmlns="http://www.w3.org/2000/svg">
                                                         <path d="M257.5 445.1l-22.2 22.2c-9.4 9.4-24.6 9.4-33.9 0L7 273c-9.4-9.4-9.4-24.6 0-33.9L201.4 44.7c9.4-9.4 24.6-9.4 33.9 0l22.2 22.2c9.5 9.5 9.3 25-.4 34.3L136.6 216H424c13.3 0 24 10.7 24 24v32c0 13.3-10.7 24-24 24H136.6l120.5 114.8c9.8 9.3 10 24.8.4 34.3z"></path>
                                                     </svg></span></button></div>
-                                        <p class="text-[18px] font-semibold md:text-[22px]">User document upload for Rajib Hossain</p>
+                                        <p class="text-[18px] font-semibold md:text-[22px]" style="margin: 0;">User document upload for <?php
+                                                                                                                                        if (is_user_logged_in()) {
+                                                                                                                                            // Display first name and last name
+                                                                                                                                            echo esc_html(get_user_meta($user_id, 'first_name', true) . ' ' . get_user_meta($user_id, 'last_name', true));
+                                                                                                                                        } else {
+                                                                                                                                            echo 'Guest User';
+                                                                                                                                        }
+                                                                                                                                        ?></p>
                                     </div>
                                     <div class="flex items-center gap-5">
-                                        <div class="flex justify-end"><button type="button" class="ant-btn css-1588u1j ant-btn-primary"><span>Create</span></button></div>
+                                        <div class="flex justify-end"><button type="button" class="ant-btn css-1588u1j ant-btn-primary document_add"><span>Create</span></button></div>
                                     </div>
                                 </div>
                                 <div class="ant-table-wrapper css-1588u1j">
@@ -4452,23 +5205,63 @@ function ud_display_per_user_documents_shortcode()
                                                                 </tr>
                                                             </thead>
                                                             <tbody class="ant-table-tbody">
-                                                                <tr class="ant-table-placeholder">
-                                                                    <td class="ant-table-cell" colspan="3">
-                                                                        <div class="css-1588u1j ant-empty ant-empty-normal">
-                                                                            <div class="ant-empty-image"><svg width="64" height="41" viewBox="0 0 64 41" xmlns="http://www.w3.org/2000/svg">
-                                                                                    <title>Simple Empty</title>
-                                                                                    <g transform="translate(0 1)" fill="none" fill-rule="evenodd">
-                                                                                        <ellipse fill="#f5f5f5" cx="32" cy="33" rx="32" ry="7"></ellipse>
-                                                                                        <g fill-rule="nonzero" stroke="#d9d9d9">
-                                                                                            <path d="M55 12.76L44.854 1.258C44.367.474 43.656 0 42.907 0H21.093c-.749 0-1.46.474-1.947 1.257L9 12.761V22h46v-9.24z"></path>
-                                                                                            <path d="M41.613 15.931c0-1.605.994-2.93 2.227-2.931H55v18.137C55 33.26 53.68 35 52.05 35h-40.1C10.32 35 9 33.259 9 31.137V13h11.16c1.233 0 2.227 1.323 2.227 2.928v.022c0 1.605 1.005 2.901 2.237 2.901h14.752c1.232 0 2.237-1.308 2.237-2.913v-.007z" fill="#fafafa"></path>
+                                                                <?php if (!empty($documents)) {
+                                                                    foreach ($documents as $document) { ?>
+                                                                        <tr class="ant-table-row ant-table-row-level-0" data-row-key="499">
+                                                                            <td class="ant-table-cell">
+                                                                                <p class="min-w-[100px]"><?php echo  esc_html($document->title); ?></p>
+                                                                            </td>
+                                                                            <td class="ant-table-cell">
+                                                                                <div class="flex min-w-[100px] gap-3">
+                                                                                    <style>
+                                                                                        .ant-image-mask {
+                                                                                            display: none;
+                                                                                            transition: all 1s;
+                                                                                        }
+
+                                                                                        .ant-image {
+                                                                                            cursor: pointer;
+                                                                                        }
+
+                                                                                        .ant-image:hover .ant-image-mask {
+                                                                                            display: flex;
+                                                                                        }
+                                                                                    </style>
+                                                                                    <div sizes="100vw" class="ant-image css-1588u1j" style="width: 100px; height: 100px; position:relative;"><img sizes="100vw" alt="Preview" class="ant-image-img h-16 w-16 object-cover css-1588u1j" src="<?php echo esc_url($document->file_url); ?>" width="100" height="100" style="height: 100px;">
+                                                                                        <a href="<?php echo esc_url($document->file_url); ?>" target="_blank">
+                                                                                            <div class="ant-image-mask" style="position: absolute; inset: 0; margin: auto; background: #00000052; align-items: center; justify-content: center; color: #fff;">
+                                                                                                <div class="ant-image-mask-info"><span role="img" aria-label="eye" class="anticon anticon-eye"><svg viewBox="64 64 896 896" focusable="false" data-icon="eye" width="1em" height="1em" fill="currentColor" aria-hidden="true">
+                                                                                                            <path d="M942.2 486.2C847.4 286.5 704.1 186 512 186c-192.2 0-335.4 100.5-430.2 300.3a60.3 60.3 0 000 51.5C176.6 737.5 319.9 838 512 838c192.2 0 335.4-100.5 430.2-300.3 7.7-16.2 7.7-35 0-51.5zM512 766c-161.3 0-279.4-81.8-362.7-254C232.6 339.8 350.7 258 512 258c161.3 0 279.4 81.8 362.7 254C791.5 684.2 673.4 766 512 766zm-4-430c-97.2 0-176 78.8-176 176s78.8 176 176 176 176-78.8 176-176-78.8-176-176-176zm0 288c-61.9 0-112-50.1-112-112s50.1-112 112-112 112 50.1 112 112-50.1 112-112 112z"></path>
+                                                                                                        </svg></span>Preview</div>
+                                                                                            </div>
+                                                                                        </a>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </td>
+                                                                            <td class="ant-table-cell ant-table-cell-fix-right ant-table-cell-fix-right-first" style="position: sticky; right: 0px;">
+                                                                                <div class="flex gap-2"><?php echo generate_delete_button("per_user_document", $document->document_id, "ant-btn-primary ant-btn-dangerous", "padding:4px 15px;"); ?></div>
+                                                                            </td>
+                                                                        </tr>
+                                                                    <?php }
+                                                                } else { ?>
+                                                                    <tr class="ant-table-placeholder">
+                                                                        <td class="ant-table-cell" colspan="3">
+                                                                            <div class="css-1588u1j ant-empty ant-empty-normal">
+                                                                                <div class="ant-empty-image"><svg width="64" height="41" viewBox="0 0 64 41" xmlns="http://www.w3.org/2000/svg">
+                                                                                        <title>Simple Empty</title>
+                                                                                        <g transform="translate(0 1)" fill="none" fill-rule="evenodd">
+                                                                                            <ellipse fill="#f5f5f5" cx="32" cy="33" rx="32" ry="7"></ellipse>
+                                                                                            <g fill-rule="nonzero" stroke="#d9d9d9">
+                                                                                                <path d="M55 12.76L44.854 1.258C44.367.474 43.656 0 42.907 0H21.093c-.749 0-1.46.474-1.947 1.257L9 12.761V22h46v-9.24z"></path>
+                                                                                                <path d="M41.613 15.931c0-1.605.994-2.93 2.227-2.931H55v18.137C55 33.26 53.68 35 52.05 35h-40.1C10.32 35 9 33.259 9 31.137V13h11.16c1.233 0 2.227 1.323 2.227 2.928v.022c0 1.605 1.005 2.901 2.237 2.901h14.752c1.232 0 2.237-1.308 2.237-2.913v-.007z" fill="#fafafa"></path>
+                                                                                            </g>
                                                                                         </g>
-                                                                                    </g>
-                                                                                </svg></div>
-                                                                            <div class="ant-empty-description">No data</div>
-                                                                        </div>
-                                                                    </td>
-                                                                </tr>
+                                                                                    </svg></div>
+                                                                                <div class="ant-empty-description">No data</div>
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                <?php } ?>
                                                             </tbody>
                                                         </table>
                                                     </div>
@@ -4489,6 +5282,70 @@ function ud_display_per_user_documents_shortcode()
                             </div>
                         </main>
                     </div>
+
+                    <div class="ant-drawer ant-drawer-right css-1588u1j ant-drawer-open" tabindex="-1">
+                        <!-- <div class="ant-drawer-mask"></div> -->
+                        <div tabindex="0" aria-hidden="true" data-sentinel="start" style="width: 0px; height: 0px; overflow: hidden; outline: none; position: absolute;"></div>
+                        <div class="ant-drawer-content-wrapper ant-drawer-content-wrapper-hidden" style="width: 378px;">
+                            <div class="ant-drawer-content" role="dialog" aria-modal="true">
+                                <div class="ant-drawer-header">
+                                    <div class="ant-drawer-header-title"><button type="button" aria-label="Close" class="ant-drawer-close"><span role="img" aria-label="close" class="anticon anticon-close"><svg fill-rule="evenodd" viewBox="64 64 896 896" focusable="false" data-icon="close" width="1em" height="1em" fill="currentColor" aria-hidden="true">
+                                                    <path d="M799.86 166.31c.02 0 .04.02.08.06l57.69 57.7c.04.03.05.05.06.08a.12.12 0 010 .06c0 .03-.02.05-.06.09L569.93 512l287.7 287.7c.04.04.05.06.06.09a.12.12 0 010 .07c0 .02-.02.04-.06.08l-57.7 57.69c-.03.04-.05.05-.07.06a.12.12 0 01-.07 0c-.03 0-.05-.02-.09-.06L512 569.93l-287.7 287.7c-.04.04-.06.05-.09.06a.12.12 0 01-.07 0c-.02 0-.04-.02-.08-.06l-57.69-57.7c-.04-.03-.05-.05-.06-.07a.12.12 0 010-.07c0-.03.02-.05.06-.09L454.07 512l-287.7-287.7c-.04-.04-.05-.06-.06-.09a.12.12 0 010-.07c0-.02.02-.04.06-.08l57.7-57.69c.03-.04.05-.05.07-.06a.12.12 0 01.07 0c.03 0 .05.02.09.06L512 454.07l287.7-287.7c.04-.04.06-.05.09-.06a.12.12 0 01.07 0z"></path>
+                                                </svg></span></button>
+                                        <div class="ant-drawer-title">Upload Documents</div>
+                                    </div>
+                                </div>
+                                <div class="ant-drawer-body">
+                                    <form class="ant-form ant-form-vertical ant-form-large css-1588u1j" id="document_form" method="post" enctype="multipart/form-data" action="">
+                                        <div class="ant-form-item css-1588u1j">
+                                            <div class="ant-row ant-form-item-row css-1588u1j">
+                                                <div class="ant-col ant-form-item-label css-1588u1j"><label for="title" class="ant-form-item-required" title="Title">Title</label></div>
+                                                <div class="ant-col ant-form-item-control css-1588u1j">
+                                                    <div class="ant-form-item-control-input">
+                                                        <div class="ant-form-item-control-input-content"><input placeholder="Write title" id="title" name="title" aria-required="true" class="ant-input ant-input-lg css-1588u1j ant-input-outlined" type="text" value=""></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="ant-form-item dragger_wrapper mt-10 css-1588u1j">
+                                            <div class="ant-row ant-form-item-row css-1588u1j">
+                                                <div class="ant-col ant-form-item-label css-1588u1j"><label for="links" class="ant-form-item-required" title="Upload Scanned Copy">Upload Scanned Copy</label></div>
+                                                <input type="file" name="file" id="file" class="ant-upload mt-5">
+                                            </div>
+                                        </div>
+                                        <div class="mt-10">
+                                            <div class="ant-form-item css-1588u1j">
+                                                <div class="ant-row ant-form-item-row css-1588u1j">
+                                                    <div class="ant-col ant-form-item-control css-1588u1j">
+                                                        <div class="ant-form-item-control-input">
+                                                            <div class="ant-form-item-control-input-content"><button type="submit" class="ant-btn css-1588u1j ant-btn-primary ant-btn-lg lg:w-36"><span>Submit</span></button></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        <div tabindex="0" aria-hidden="true" data-sentinel="end" style="width: 0px; height: 0px; overflow: hidden; outline: none; position: absolute;"></div>
+                    </div>
+
+                    <script>
+                        jQuery(document).ready(function($) {
+                            $('.ant-drawer-close').on('click', function() {
+                                $('.ant-drawer-open').removeClass('ant-drawer-open');
+                                $('.ant-drawer-mask').remove();
+                                $('.ant-drawer-content-wrapper').addClass('ant-drawer-content-wrapper-hidden');
+                            });
+                            $('.document_add').on('click', function() {
+                                $('.ant-drawer-content-wrapper').removeClass('ant-drawer-content-wrapper-hidden');
+
+                            });
+                        });
+                    </script>
+
+
                 </div>
             </main>
         </div>
@@ -4501,6 +5358,40 @@ function ud_display_per_user_documents_shortcode()
         </main>
         </div>
     </body>
+    <!-- handle delete item -->
+<script>
+jQuery(document).ready(function($) {
+    $(".removeitem").on("click", function() {
+        var table = $(this).data("table"); // Get table name
+        var entryId = $(this).data("id"); // Get entry ID
+
+        if (!confirm("Are you sure you want to delete this entry?")) {
+            return;
+        }
+
+        $.ajax({
+            type: "POST",
+            url: "<?php echo admin_url('admin-ajax.php'); ?>",
+            data: {
+                action: "delete_entry",
+                table: table,
+                entry_id: entryId
+            },
+            success: function(response) {
+                if (response.success) {
+                    alert("Entry deleted successfully.");
+                    location.reload(); // Refresh or remove the element dynamically
+                } else {
+                    alert("Error: " + response.data);
+                }
+            },
+            error: function() {
+                alert("An error occurred.");
+            }
+        });
+    });
+});
+</script>
 
 <?php
     return ob_get_clean();
@@ -4509,3 +5400,27 @@ function ud_display_per_user_documents_shortcode()
 
 // Register the shortcode
 add_shortcode('per_user_documents', 'ud_display_per_user_documents_shortcode');
+
+
+function get_user_documents($user_id)
+{
+    global $wpdb;
+
+    // Check if the user ID is valid
+    if ($user_id) {
+        // Define the table name
+        $table_name = $wpdb->prefix . 'per_user_document';
+
+        // Query to get documents for the specified user
+        $documents = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM $table_name WHERE user_id = %d",
+                $user_id
+            )
+        );
+
+        return $documents; // Returns an array of documents
+    }
+
+    return []; // Return an empty array if the user ID is not valid
+}

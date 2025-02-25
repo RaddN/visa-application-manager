@@ -1,5 +1,10 @@
 <?php
 
+// Exit if accessed directly.
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 // Create a shortcode to display co-travelers
 function ud_display_user_documents_shortcode()
 {
@@ -15,8 +20,9 @@ function ud_display_user_documents_shortcode()
 
     if ($co_traveler_id !== 0) {
         // Perform a database query to check the co-traveler relationship
+        $table_name = $wpdb->prefix . 'co_travelers_info';
         $query = $wpdb->prepare(
-            "SELECT COUNT(*) FROM wp_co_travelers_info WHERE co_traveler_id = %d AND user_id = %d",
+            "SELECT COUNT(*) FROM $table_name WHERE co_traveler_id = %d AND user_id = %d",
             $co_traveler_id,
             $user_id
         );
@@ -4474,24 +4480,57 @@ function ud_display_user_documents_shortcode()
                                 </div>
                                 <section class="my_family">
                                     <div class="ant-row css-1588u1j"
-                                        style="margin-left: -10px; margin-right: -10px; row-gap: 20px;"><?php
-                                                                                                        if ($co_travelers) {
-                                                                                                            foreach ($co_travelers as $traveler) {
-                                                                                                        ?>
-
-                                                <div class="ant-col ant-col-xs-24 ant-col-sm-12 ant-col-md-8 ant-col-lg-6 ant-col-xl-4 css-1588u1j" style="padding-left: 10px; padding-right: 10px;">
+                                        style="margin-left: -10px; margin-right: -10px; row-gap: 20px;">
+                                        <div class="ant-col ant-col-xs-24 ant-col-sm-12 ant-col-md-8 ant-col-lg-6 ant-col-xl-4 css-1588u1j" style="padding-left: 10px; padding-right: 10px;">
                                                     <div class="family_member_card cursor-pointer">
-                                                        <a href="/user/user_documents/?user=<?php echo esc_html($traveler->co_traveler_id); ?>">
+                                                        <a href="/user/user_documents/?user_id=<?php echo esc_html($user_id); ?>">
                                                             <div class="delete_edit_icon cursor-pointer">
                                                                 <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" class="edit" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
                                                                     <path fill="none" d="M0 0h24v24H0V0z"></path>
                                                                     <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95A5.469 5.469 0 0 1 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11A2.98 2.98 0 0 1 22 15c0 1.65-1.35 3-3 3zM8 13h2.55v3h2.9v-3H16l-4-4z"></path>
                                                                 </svg>
                                                             </div>
+                                                            <?php $profile_image_url = get_user_meta($user_id, 'profile_image', true); 
+                                                            if(empty($profile_image_url)){
+                                                                $profile_image_url = 'https://visathing.com/_next/image/?url=%2Fimages%2Ffamily_members%2Fbrother.png&w=1920&q=75';
+                                                            }
+                                                            ?>
                                                             <img alt="family member" loading="lazy" width="0" height="0" decoding="async" data-nimg="1"
-                                                                srcset="https://visathing.com/_next/image/?url=%2Fimages%2Ffamily_members%2Fbrother.png&w=1920&q=75"
-                                                                src="https://visathing.com/_next/image/?url=%2Fimages%2Ffamily_members%2Fbrother.png&w=1920&q=75"
-                                                                style="color: transparent;">
+                                                                srcset="<?php echo esc_url($profile_image_url); ?>"
+                                                                src="<?php echo esc_url($profile_image_url); ?>"
+                                                                style="color: transparent; border-radius: 50%;">                
+                                                            <div>
+                                                                <h4><?php echo esc_html(get_user_meta($user_id, 'first_name', true) . ' ' . get_user_meta($user_id, 'last_name', true)); ?></h4>
+                                                                <h5><?php echo "My Self" ?></h5>
+                                                                <h6><?php echo esc_html(get_user_meta($user_id, 'nickname', true)); ?></h6>
+                                                            </div>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                        
+                                        <?php
+                                                                                                        if ($co_travelers) {
+                                                                                                            foreach ($co_travelers as $traveler) {
+                                                                                                        ?>
+
+                                                <div class="ant-col ant-col-xs-24 ant-col-sm-12 ant-col-md-8 ant-col-lg-6 ant-col-xl-4 css-1588u1j" style="padding-left: 10px; padding-right: 10px;">
+                                                    <div class="family_member_card cursor-pointer">
+                                                        <a href="/user/user_documents/?user_id=<?php echo esc_html($traveler->co_traveler_id); ?>">
+                                                            <div class="delete_edit_icon cursor-pointer">
+                                                                <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 24 24" class="edit" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                                                                    <path fill="none" d="M0 0h24v24H0V0z"></path>
+                                                                    <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95A5.469 5.469 0 0 1 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11A2.98 2.98 0 0 1 22 15c0 1.65-1.35 3-3 3zM8 13h2.55v3h2.9v-3H16l-4-4z"></path>
+                                                                </svg>
+                                                            </div>
+                                                            <?php $profile_image_url = get_user_meta($traveler->co_traveler_id, 'profile_image', true); 
+                                                            if(empty($profile_image_url)){
+                                                                $profile_image_url = 'https://visathing.com/_next/image/?url=%2Fimages%2Ffamily_members%2Fbrother.png&w=1920&q=75';
+                                                            }
+                                                            ?>
+                                                            <img alt="family member" loading="lazy" width="0" height="0" decoding="async" data-nimg="1"
+                                                                srcset="<?php echo esc_url($profile_image_url); ?>"
+                                                                src="<?php echo esc_url($profile_image_url); ?>"
+                                                                style="color: transparent; border-radius: 50%;">                                                 
                                                             <div>
                                                                 <h4><?php echo esc_html($traveler->first_name . ' ' . $traveler->last_name); ?></h4>
                                                                 <h5><?php echo esc_html($traveler->relationship); ?></h5>

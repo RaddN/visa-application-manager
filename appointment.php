@@ -22,8 +22,9 @@ function ua_display_user_appointments_shortcode()
 
     if ($co_traveler_id !== 0) {
         // Perform a database query to check the co-traveler relationship
+        $table_name = $wpdb->prefix . 'co_travelers_info';
         $query = $wpdb->prepare(
-            "SELECT COUNT(*) FROM wp_co_travelers_info WHERE co_traveler_id = %d AND user_id = %d",
+            "SELECT COUNT(*) FROM $table_name WHERE co_traveler_id = %d AND user_id = %d",
             $co_traveler_id,
             $user_id
         );
@@ -43,8 +44,9 @@ function ua_display_user_appointments_shortcode()
     }
 
     // Query to get all bookings for the current user
+    $table_name = $wpdb->prefix . 'bookingpress_appointment_bookings';
     $query = $wpdb->prepare(
-        "SELECT * FROM wp_bookingpress_appointment_bookings WHERE bookingpress_customer_id = %d",
+        "SELECT * FROM $table_name WHERE bookingpress_customer_id = %d",
         $user_id
     );
 

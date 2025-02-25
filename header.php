@@ -1,3 +1,9 @@
+<?php
+
+// Exit if accessed directly.
+if (!defined('ABSPATH')) {
+    exit;
+}?>
 <header class="ant-layout-header md:!h-[100px] css-1588u1j"
     style="position:fixed;width:100%;background:#F3F3FC;padding:0;display:flex;align-items:center;justify-content:space-between;z-index:8;right:0;top:0;box-shadow:0 0 20px #0815420d;border-bottom:1px solid #ecf3fa">
     <div class="main_navigation flex items-center border-b px-3 md:h-[100px]"

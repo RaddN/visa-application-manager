@@ -6,8 +6,11 @@ if (!defined('ABSPATH')) {
 }
 
 // Create a shortcode to display user transactions
-function ut_display_user_transactions_shortcode()
+function ut_display_user_transactions_shortcode($atts)
 {
+    $atts = shortcode_atts(array(
+        'application_form_id' => '0'
+    ), $atts);
     // Check if the user is logged in
     if (!is_user_logged_in()) {
         return '<p>You need to be logged in to view your transactions.</p>';
@@ -21,8 +24,9 @@ function ut_display_user_transactions_shortcode()
 
     if ($co_traveler_id !== 0) {
         // Perform a database query to check the co-traveler relationship
+        $table_name = $wpdb->prefix . 'co_travelers_info';
         $query = $wpdb->prepare(
-            "SELECT COUNT(*) FROM wp_co_travelers_info WHERE co_traveler_id = %d AND user_id = %d",
+            "SELECT COUNT(*) FROM $table_name WHERE co_traveler_id = %d AND user_id = %d",
             $co_traveler_id,
             $user_id
         );
@@ -46,7 +50,7 @@ function ut_display_user_transactions_shortcode()
     $results = $wpdb->get_results($wpdb->prepare(
         "SELECT entry_id, fields FROM {$wpdb->prefix}wpforms_entries 
         WHERE form_id = %d AND type = %s AND user_id = %d",
-        17,
+        intval($atts['application_form_id']),
         'payment',
         $current_user_id
     ));
@@ -64,11 +68,22 @@ function ut_display_user_transactions_shortcode()
     $table_rows = '';
 
     foreach ($fields_data as $fields) {
-        // Extract values
-        $amount = isset($fields[52]['amount']) ? $fields[52]['amount'] : 'N/A'; // Assuming Amount is stored under ID 52
-        $status = isset($fields[63]['value']) ? $fields[63]['value'] : 'N/A'; // Assuming Status is stored under ID 63
-        $payment_method = isset($fields[53]['value']) ? $fields[53]['value'] : 'N/A'; // Assuming Payment Method is stored under ID 53
-
+        // Initialize variables to hold extracted values
+        $amount = 'N/A';
+        $status = 'N/A';
+        $payment_method = 'N/A';
+    
+        // Iterate through the fields to find the necessary values
+        foreach ($fields as $field) {
+            if ($field['name'] === 'Select VISAThing Services') {
+                $amount = isset($field['amount']) ? $field['amount'] : 'N/A'; // Assuming Amount is stored under this name
+            } elseif ($field['name'] === 'visacata') {
+                $status = $field['value']; // Assuming Status is stored under this name
+            } elseif ($field['name'] === 'Stripe Credit Card') {
+                $payment_method = $field['value']; // Assuming Payment Method is stored under this name
+            }
+        }
+    
         // Create a table row
         $table_rows .= '<tr>';
         $table_rows .= '<td class="ant-table-cell">' . esc_html($row->entry_id) . '</td>';

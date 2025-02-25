@@ -1,27 +1,29 @@
 <?php
-function get_cities_by_country()
-{
+
+// Exit if accessed directly.
+if (!defined('ABSPATH')) {
+    exit;
+}
+function get_cities_by_country() {
     if (isset($_POST['country'])) {
         $country = sanitize_text_field($_POST['country']);
-
-        $url = "https://countriesnow.space/api/v0.1/countries/cities";
-        $postData = json_encode(["country" => $country]);
-
-        $response = wp_remote_post($url, [
-            'body'    => $postData,
-            'headers' => ['Content-Type' => 'application/json']
-        ]);
-
+        
+        // Fetch the country data from the local JSON file
+        $file_path = plugin_dir_path(__FILE__) . 'countries.json'; // Adjust the file name if necessary
+        $response = file_get_contents($file_path);
+        $countries = json_decode($response, true);
+        
         $cities = [];
 
-        if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) == 200) {
-            $data = json_decode(wp_remote_retrieve_body($response), true);
-
-            if (isset($data['data'])) {
-                $cities = $data['data'];
+        // Find the country and its cities
+        foreach ($countries as $item) {
+            if (isset($item['country']) && $item['country'] === $country) {
+                $cities = $item['cities']; // Get the cities for the matched country
+                break;
             }
         }
 
+        // Output cities in dropdown format
         if (!empty($cities)) {
             foreach ($cities as $city) {
                 echo "<option value='" . esc_html($city) . "'>" . esc_html($city) . "</option>";

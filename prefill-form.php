@@ -1,5 +1,10 @@
 <?php
 
+// Exit if accessed directly.
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 function wpforms_prefill_shortcode()
 {
     global $wpdb;
@@ -7,8 +12,9 @@ function wpforms_prefill_shortcode()
     $entry_id = isset($_GET['entry_id']) ? intval($_GET['entry_id']) : 0;
     ob_start();
     if ($entry_id) {
+        $table_name = $wpdb->prefix . 'wpforms_entries';
         $entry = $wpdb->get_row($wpdb->prepare(
-            "SELECT fields FROM wp_wpforms_entries WHERE entry_id = %d",
+            "SELECT fields FROM $table_name WHERE entry_id = %d",
             $entry_id
         ));
 

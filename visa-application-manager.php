@@ -41,9 +41,9 @@ function wpforms_update_entry()
         // Proceed with the update
         global $wpdb;
         $fieldData = json_encode($updatedData); // Convert to JSON for storage
-
+        $table_name = $wpdb->prefix . 'wpforms_entries';
         $updated = $wpdb->update(
-            'wp_wpforms_entries',
+            $table_name,
             array('fields' => $fieldData),
             array('entry_id' => $entryId)
         );
@@ -77,8 +77,9 @@ function visa_dashboard_shortcode($atts)
     $co_traveler_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : '';
 
     // Perform a database query to check the co-traveler relationship
+    $table_name = $wpdb->prefix . 'co_travelers_info';
     $query = $wpdb->prepare(
-        "SELECT COUNT(*) FROM wp_co_travelers_info WHERE co_traveler_id = %d AND user_id = %d",
+        "SELECT COUNT(*) FROM $table_name WHERE co_traveler_id = %d AND user_id = %d",
         $co_traveler_id,
         $user_id
     );
@@ -94,20 +95,21 @@ function visa_dashboard_shortcode($atts)
         }
     }
     $current_user_id = $user_id;
+    $table_name = $wpdb->prefix . 'wpforms_entries';
     $total_applied_visa = $wpdb->get_var($wpdb->prepare(
-        "SELECT COUNT(*) FROM wp_wpforms_entries WHERE user_id = %d AND form_id = %d",
+        "SELECT COUNT(*) FROM $table_name WHERE user_id = %d AND form_id = %d",
         $current_user_id,
         intval($atts['application_form_id'])
     ));
     $entries_unpaid_visa = $wpdb->get_results($wpdb->prepare(
-        "SELECT entry_id, date_modified FROM wp_wpforms_entries WHERE user_id = %d AND form_id = %d AND type = ''",
+        "SELECT entry_id, date_modified FROM $table_name WHERE user_id = %d AND form_id = %d AND type = ''",
         $current_user_id,
         intval($atts['application_form_id'])
     ));
     // Fetch all relevant entries for the user
     $fields_jsons = $wpdb->get_results($wpdb->prepare(
         "SELECT fields 
-        FROM wp_wpforms_entries 
+        FROM $table_name 
         WHERE user_id = %d AND form_id = 17 AND type = 'payment';",
         $current_user_id
     ));
@@ -795,6 +797,19 @@ function create_user_info_table()
         PRIMARY KEY  (id)
     ) $charset_collate;";
     dbDelta($sql12);
+
+    // create table for documents
+    $documents_table = $wpdb->prefix . 'per_user_document';
+    $sql13 = "CREATE TABLE $documents_table (
+    document_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT(20) NOT NULL,
+    uploader_id BIGINT(20) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    file_url VARCHAR(255) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    );";
+    dbDelta($sql13);
 }
 
 register_activation_hook(__FILE__, 'create_user_info_table');
@@ -874,3 +889,13 @@ function fix_svg()
     </style>';
 }
 add_action('admin_head', 'fix_svg');
+
+
+function my_plugin_activate() {
+    // Set default application form ID if it doesn't exist
+    if (get_option('application_form_id') === false) {
+        add_option('application_form_id', 17);
+    }
+}
+
+register_activation_hook(__FILE__, 'my_plugin_activate');

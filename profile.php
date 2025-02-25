@@ -1,5 +1,10 @@
 <?php
 
+// Exit if accessed directly.
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 function up_handle_user_profile_update()
 {
     // Ensure user is logged in
@@ -16,8 +21,9 @@ function up_handle_user_profile_update()
     
     if($co_traveler_id!==0){
         // Perform a database query to check the co-traveler relationship
+        $table_name = $wpdb->prefix . 'co_travelers_info';
         $query = $wpdb->prepare(
-            "SELECT COUNT(*) FROM wp_co_travelers_info WHERE co_traveler_id = %d AND user_id = %d",
+            "SELECT COUNT(*) FROM $table_name WHERE co_traveler_id = %d AND user_id = %d",
             $co_traveler_id,
             $user_id
         );
@@ -629,8 +635,9 @@ function up_user_profile_shortcode()
     
     if($co_traveler_id!==0){
     // Perform a database query to check the co-traveler relationship
+    $table_name = $wpdb->prefix . 'co_travelers_info';
     $query = $wpdb->prepare(
-        "SELECT COUNT(*) FROM wp_co_travelers_info WHERE co_traveler_id = %d AND user_id = %d",
+        "SELECT COUNT(*) FROM $table_name WHERE co_traveler_id = %d AND user_id = %d",
         $co_traveler_id,
         $user_id
     );
@@ -21836,20 +21843,22 @@ function up_user_profile_shortcode()
                                                                         <select id="fromCountry" name="fromCountry" class="ant-select-selection-search ant-select-selector">
                                                                                 <option value="">Select a country</option>
                                                                                 <?php
-                                                                                // Fetch country list from API
-                                                                                $url = "https://restcountries.com/v3.1/all";
-                                                                                $response = file_get_contents($url);
-                                                                                $countries = json_decode($response, true);
-                                                                                usort($countries, function ($a, $b) {
-                                                                                    return strcmp($a['name']['common'], $b['name']['common']);
-                                                                                });
-                                                                                // Populate country dropdown
-                                                                                foreach ($countries as $country) {
-                                                                                    if (isset($country['name']['common'])) {
-                                                                                        echo "<option value='" . $country['name']['common'] . "'>" . $country['name']['common'] . "</option>";
+                                                                                    // Fetch country list from local JSON file
+                                                                                    $file_path = plugin_dir_path(__FILE__) . 'countries.json'; // Adjust the file name if necessary
+                                                                                    $response = file_get_contents($file_path);
+                                                                                    $countries = json_decode($response, true);
+
+                                                                                    usort($countries, function ($a, $b) {
+                                                                                        return strcmp($a['country'], $b['country']);
+                                                                                    });
+
+                                                                                    // Populate country dropdown
+                                                                                    foreach ($countries as $country) {
+                                                                                        if (isset($country['country'])) {
+                                                                                            echo "<option value='" . esc_attr($country['country']) . "'>" . esc_html($country['country']) . "</option>";
+                                                                                        }
                                                                                     }
-                                                                                }
-                                                                                ?>
+                                                                                    ?>
                                                                         </select>
                                                                             
                                                                     </div>
@@ -21890,8 +21899,8 @@ function up_user_profile_shortcode()
                                                                                 <option value="">Select a country</option>
                                                                                 <?php
                                                                                 foreach ($countries as $country) {
-                                                                                    if (isset($country['name']['common'])) {
-                                                                                        echo "<option value='" . $country['name']['common'] . "'>" . $country['name']['common'] . "</option>";
+                                                                                    if (isset($country['country'])) {
+                                                                                        echo "<option value='" . $country['country'] . "'>" . $country['country'] . "</option>";
                                                                                     }
                                                                                 }
                                                                                 ?>
@@ -22509,6 +22518,7 @@ function delete_entry() {
         'children_info' => 'child_id',
         'travel_history_info' => 'travel_id',
         'passport_info' => 'passport_id',
+        'per_user_document'=> 'document_id',
     ];
 
     // Check if the table exists in our mapping
