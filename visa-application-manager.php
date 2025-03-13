@@ -131,7 +131,12 @@ function visa_dashboard_shortcode($atts)
         }
     }
 
-    ob_start(); ?>
+    ob_start(); 
+    
+    ?>
+    
+
+    
     <?php include 'head.php'; ?>
 
     <body>
@@ -569,6 +574,7 @@ function visa_dashboard_shortcode($atts)
 
 add_shortcode('visa_dashboard', 'visa_dashboard_shortcode');
 
+
 include_once 'visa_mange_profile.php';
 include_once 'my-applied-visa.php';
 include_once 'prefill-form.php';
@@ -581,6 +587,8 @@ include_once 'setting.php';
 include_once 'get_cities.php';
 include_once 'visa-fee-manage/visa-fee-manage.php';
 include_once 'user_documents.php';
+include_once 'sslcommerz/pay_now.php';
+include_once 'sslcommerz/payment-success.php';
 
 // create database table
 function create_user_info_table()
@@ -789,6 +797,31 @@ function create_user_info_table()
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     );";
     dbDelta($sql13);
+
+    // sslcommerze data store
+    $ssl_commerz_table_name = $wpdb->prefix . 'sslcommerz_payments';
+    
+    $charset_collate = $wpdb->get_charset_collate();
+    
+    $sql14 = "CREATE TABLE $ssl_commerz_table_name (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) DEFAULT NULL,
+        transaction_id varchar(255) NOT NULL,
+        customer_name varchar(255) NOT NULL,
+        customer_email varchar(255) NOT NULL,
+        amount decimal(10,2) NOT NULL,
+        currency varchar(10) NOT NULL,
+        entry_id bigint(20) DEFAULT 0,
+        product_name varchar(255) NOT NULL,
+        payment_status varchar(50) NOT NULL,
+        gateway_response text,
+        created_at datetime DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY  (id)
+    ) $charset_collate;";
+
+    dbDelta($sql14);
+
+
 }
 
 register_activation_hook(__FILE__, 'create_user_info_table');
@@ -843,14 +876,27 @@ add_action('after_setup_theme', function () {
     }
 });
 
-add_action('admin_init', function () {
-    if (current_user_can('subscriber')) {
-        // Redirect subscribers trying to access wp-admin
-        wp_redirect(home_url('/user/')); // Replace '/user/' with your desired URL
-        exit;
-    }
-});
+// add_action('admin_init', function () {
+//     if (current_user_can('subscriber')) {
+//         // Redirect subscribers trying to access wp-admin
+//         wp_redirect(home_url('/user/')); // Replace '/user/' with your desired URL
+//         exit;
+//     }
+// });
 
+function custom_login_redirect($redirect_to, $request, $user)
+{
+    // Check if the user is a subscriber
+    if (isset($user->roles) && is_array($user->roles)) {
+        if (in_array('subscriber', $user->roles)) {
+            // Redirect to the desired URL
+            return home_url('/user/'); // Change this to your desired URL
+        }
+    }
+    // Default redirection
+    return $redirect_to;
+}
+add_filter('login_redirect', 'custom_login_redirect', 10, 3);
 
 // Allow SVG uploads
 function cc_mime_types($mimes)
@@ -870,7 +916,8 @@ function fix_svg()
 add_action('admin_head', 'fix_svg');
 
 
-function my_plugin_activate() {
+function my_plugin_activate()
+{
     // Set default application form ID if it doesn't exist
     if (get_option('application_form_id') === false) {
         add_option('application_form_id', 17);
@@ -884,3 +931,5 @@ register_activation_hook(__FILE__, 'my_plugin_activate');
 if (!function_exists('wp_get_current_user')) {
     require_once(ABSPATH . 'wp-includes/pluggable.php');
 }
+
+
