@@ -467,4 +467,4 @@ function sslcommerz_enqueue_scripts()
 }
 add_action('wp_enqueue_scripts', 'sslcommerz_enqueue_scripts');
 
-require_once 'admin.php';
+require_once 'sslcommerz-admin.php';

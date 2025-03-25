@@ -118,7 +118,7 @@ jQuery(document).ready(function ($) {
         };
 
         dataObj['52'] = {
-            name: 'Select VISAThing Services',
+            name: 'Select TTGVISAHUB Services',
             value: 'Document Legalization - $17,000.00\nVisa Consultancy - $10,000.00',
             value_choice: 'Document Legalization\nVisa Consultancy',
             value_raw: '1,2',
@@ -193,8 +193,8 @@ jQuery(document).ready(function ($) {
 
         dataObj['40'] = {
             name: 'Checkboxes',
-            value: 'By continuing, you agree to VISAThing Terms & Condition.',
-            value_raw: 'By continuing, you agree to VISAThing Terms & Condition.',
+            value: 'By continuing, you agree to TTGVISAHUB Terms & Condition.',
+            value_raw: 'By continuing, you agree to TTGVISAHUB Terms & Condition.',
             id: 40,
             type: 'checkbox'
         };

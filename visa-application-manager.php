@@ -131,12 +131,12 @@ function visa_dashboard_shortcode($atts)
         }
     }
 
-    ob_start(); 
-    
-    ?>
-    
+    ob_start();
 
-    
+?>
+
+
+
     <?php include 'head.php'; ?>
 
     <body>
@@ -566,7 +566,7 @@ function visa_dashboard_shortcode($atts)
             }
         </style>
     </body>
-<?php
+    <?php
 
     return ob_get_clean();
     // }
@@ -800,9 +800,9 @@ function create_user_info_table()
 
     // sslcommerze data store
     $ssl_commerz_table_name = $wpdb->prefix . 'sslcommerz_payments';
-    
+
     $charset_collate = $wpdb->get_charset_collate();
-    
+
     $sql14 = "CREATE TABLE $ssl_commerz_table_name (
         id bigint(20) NOT NULL AUTO_INCREMENT,
         user_id bigint(20) DEFAULT NULL,
@@ -820,8 +820,6 @@ function create_user_info_table()
     ) $charset_collate;";
 
     dbDelta($sql14);
-
-
 }
 
 register_activation_hook(__FILE__, 'create_user_info_table');
@@ -933,3 +931,485 @@ if (!function_exists('wp_get_current_user')) {
 }
 
 
+
+
+function visa_countries_list_shortcode($atts) {
+    ob_start();
+    if (!defined('ABSPATH')) {
+        exit; // Exit if accessed directly
+    }
+
+    $atts = shortcode_atts(
+        array(
+            'title' => 'Visa Countries',
+            'default_continent' => 'All',
+            'is_embassy' => 'true',
+            'custom_url_base' => '',
+        ),
+        $atts
+    );
+
+    // Convert string to boolean for is_embassy
+    $is_embassy = filter_var($atts['is_embassy'], FILTER_VALIDATE_BOOLEAN);
+
+    $file_path = plugin_dir_path(__FILE__) . 'countries.json';
+    $response = file_get_contents($file_path);
+    $countries = json_decode($response, true);
+    $plugin_url = plugin_dir_url(__FILE__);
+
+    $continents = array(
+        'All' => 'All Countries',
+        'Asia' => 'Asia',
+        'Africa' => 'Africa',
+        'Europe' => 'Europe',
+        'North America' => 'North America',
+        'South America' => 'South America',
+        'Oceania' => 'Oceania'
+    );
+
+    if ($countries) {
+    ?>
+        <style>
+            .visa-countries-container {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px 0;
+            }
+            
+            .visa-countries-header {
+                display: flex;
+                flex-direction: column;
+                gap: 1.5rem;
+                margin-bottom: 2rem;
+            }
+            
+            @media (min-width: 768px) {
+                .visa-countries-filters {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    flex-wrap: wrap;
+                    gap: 1rem;
+                }
+            }
+            
+            .visa-search-container {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 8px 12px;
+                width: 100%;
+                max-width: 300px;
+                background: #fff;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            }
+            
+            .visa-search-container input {
+                border: none;
+                outline: none;
+                width: 100%;
+                font-size: 14px;
+            }
+            
+            .visa-search-container svg {
+                width: 18px;
+                height: 18px;
+                fill: none;
+                stroke: #666;
+                flex-shrink: 0;
+            }
+            
+            .visa-tabs {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+                margin-top: 1rem;
+            }
+            
+            @media (min-width: 768px) {
+                .visa-tabs {
+                    margin-top: 0;
+                }
+            }
+            
+            .visa-tabs button {
+                padding: 8px 16px;
+                border: 1px solid #ddd;
+                background-color: #f8f8f8;
+                cursor: pointer;
+                border-radius: 4px;
+                font-size: 14px;
+                font-weight: 500;
+                color: #444;
+                transition: all 0.2s ease;
+            }
+            
+            .visa-tabs button.active {
+                background-color: #2271b1;
+                color: #fff;
+                border-color: #2271b1;
+            }
+            
+            .visa-tabs button:hover:not(.active) {
+                background-color: #f0f0f0;
+                border-color: #ccc;
+            }
+            
+            .continent-heading {
+                margin: 1.5rem 0 1rem;
+                color: #333;
+                font-size: 1.5rem;
+                font-weight: 600;
+                border-bottom: 2px solid #f0f0f0;
+                padding-bottom: 0.5rem;
+            }
+            
+            .continent-description {
+                margin-bottom: 1.5rem;
+                color: #555;
+                font-size: 1rem;
+                line-height: 1.6;
+            }
+            
+            #visa-countries-list {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: 1rem;
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+            
+            .country-item {
+                display: flex;
+                align-items: center;
+                padding: 0;
+                background: #fff;
+                border-radius: 6px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                transition: transform 0.2s ease, box-shadow 0.2s ease;
+            }
+            
+            .country-item:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+            }
+            
+            .country-item a {
+                display: flex;
+                align-items: center;
+                padding: 12px;
+                text-decoration: none;
+                color: inherit;
+                width: 100%;
+            }
+            
+            .country-item img {
+                width: 48px;
+                height: 36px;
+                object-fit: cover;
+                margin-right: 12px;
+                border-radius: 4px;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            }
+            
+            .country-item p {
+                margin: 0;
+                font-size: 15px;
+                color: #333;
+                font-weight: 500;
+            }
+            
+            .no-countries-message {
+                grid-column: 1 / -1;
+                padding: 2rem;
+                text-align: center;
+                color: #666;
+                font-style: italic;
+                background: #f9f9f9;
+                border-radius: 6px;
+            }
+            
+            /* Loading state */
+            .visa-loading {
+                text-align: center;
+                padding: 2rem;
+                color: #666;
+            }
+            
+            .visa-loading-spinner {
+                display: inline-block;
+                width: 40px;
+                height: 40px;
+                border: 4px solid rgba(0, 0, 0, 0.1);
+                border-radius: 50%;
+                border-top-color: #2271b1;
+                animation: visa-spin 1s ease-in-out infinite;
+                margin-bottom: 1rem;
+            }
+            
+            @keyframes visa-spin {
+                to { transform: rotate(360deg); }
+            }
+        </style>
+        
+        <div class="visa-countries-container">
+            <div class="visa-countries-header">
+                <h2><?php echo esc_html($atts['title']); ?></h2>
+                
+                <div class="visa-countries-filters">
+                    <div class="visa-search-container">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" id="visa-country-search" placeholder="Search for countries...">
+                    </div>
+                    
+                    <div class="visa-tabs">
+                        <?php foreach ($continents as $key => $continent) : ?>
+                            <button class="visa-tablink <?php echo $key==='All'?'active':''; ?>" data-continent="<?php echo esc_attr($key); ?>"><?php echo esc_html($continent); ?></button>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="continent-info">
+                <h3 class="continent-heading" id="continent-heading">All Countries</h3>
+                <p class="continent-description" id="continent-description">Browse through our comprehensive list of countries where visa services are available.</p>
+            </div>
+            
+            <div id="visa-loading" class="visa-loading" style="display: none;">
+                <div class="visa-loading-spinner"></div>
+                <p>Loading countries...</p>
+            </div>
+            
+            <ul id="visa-countries-list">
+                <?php 
+                if (empty($countries)) {
+                    echo '<li class="no-countries-message">No countries found.</li>';
+                } else {
+                    foreach ($countries as $country) {
+                        $country_code = strtolower($country['code']);
+                        
+                        // Determine the correct path for the flag image
+                        $image_path = 'assets/countries/' . $country_code . '.svg';
+                        $fallback_path = 'asstes/countries/' . $country_code . '.svg'; // Support legacy folder name
+                        
+                        // Build the image URL checking for the correct directory
+                        if (file_exists(plugin_dir_path(__FILE__) . $image_path)) {
+                            $image_src = $plugin_url . $image_path;
+                        } else {
+                            $image_src = $plugin_url . $fallback_path;
+                        }
+                        
+                        // Build the country URL
+                        $url_suffix = $is_embassy ? '/embassy' : '';
+                        if (!empty($atts['custom_url_base'])) {
+                            $country_url = esc_url(trailingslashit(home_url($atts['custom_url_base'])) . sanitize_title($country['country']) . $url_suffix);
+                        } else {
+                            $country_url = esc_url(home_url('/' . sanitize_title($country['country']) . $url_suffix));
+                        }
+                    ?>
+                        <li class="country-item" data-continent="<?php echo esc_attr($country['continent']); ?>" data-name="<?php echo esc_attr($country['country']); ?>">
+                            <a href="<?php echo $country_url; ?>">
+                                <?php if (isset($country['code'])) : ?>
+                                    <img src="<?php echo esc_url($image_src); ?>" alt="<?php echo esc_attr($country['country']); ?> flag" onerror="this.src='<?php echo esc_url($plugin_url . 'assets/placeholder-flag.svg'); ?>'">
+                                <?php endif; ?>
+                                <p><?php echo esc_html($country['country']); ?></p>
+                            </a>
+                        </li>
+                    <?php 
+                    }
+                }
+                ?>
+            </ul>
+            
+            <div id="no-results" style="display: none; text-align: center; padding: 2rem; color: #666;">
+                No countries match your search criteria. Please try a different search term or continent.
+            </div>
+        </div>
+        
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const searchInput = document.getElementById('visa-country-search');
+                const countryList = document.getElementById('visa-countries-list');
+                const noResults = document.getElementById('no-results');
+                const continentHeading = document.getElementById('continent-heading');
+                const continentDescription = document.getElementById('continent-description');
+                const tabButtons = document.querySelectorAll('.visa-tablink');
+                const sortButton = document.getElementById('visa-sort-button');
+                const loadingElement = document.getElementById('visa-loading');
+                
+                let currentContinent = '<?php echo esc_js($atts['default_continent']); ?>';
+                let currentSortDirection = 'asc';
+                let countryItems = Array.from(countryList.querySelectorAll('.country-item'));
+                
+                // Set continent descriptions
+                const continentInfo = {
+                    'All': {
+                        heading: 'All Countries',
+                        description: 'Browse through our comprehensive list of countries where visa services are available.'
+                    },
+                    'Asia': {
+                        heading: 'Countries in Asia',
+                        description: 'Explore visa services for countries across Asia, from East Asia to the Middle East and Southeast Asia.'
+                    },
+                    'Africa': {
+                        heading: 'Countries in Africa',
+                        description: 'Discover visa services available for countries throughout the African continent.'
+                    },
+                    'Europe': {
+                        heading: 'Countries in Europe',
+                        description: 'Find visa services for European countries, including both EU and non-EU nations.'
+                    },
+                    'North America': {
+                        heading: 'Countries in North America',
+                        description: 'Access visa services for countries in North America, including Central America and the Caribbean.'
+                    },
+                    'South America': {
+                        heading: 'Countries in South America',
+                        description: 'View visa services available for countries across South America.'
+                    },
+                    'Oceania': {
+                        heading: 'Countries in Oceania',
+                        description: 'Explore visa services for countries in Oceania, including Australia, New Zealand, and Pacific Island nations.'
+                    }
+                };
+                
+                // Sort countries
+                function sortCountries() {
+                    const direction = currentSortDirection === 'asc' ? 1 : -1;
+                    
+                    showLoading();
+                    
+                    setTimeout(() => {
+                        countryItems.sort((a, b) => {
+                            const nameA = a.getAttribute('data-name').toUpperCase();
+                            const nameB = b.getAttribute('data-name').toUpperCase();
+                            return direction * nameA.localeCompare(nameB);
+                        });
+                        
+                        // Remove existing items
+                        while (countryList.firstChild) {
+                            countryList.removeChild(countryList.firstChild);
+                        }
+                        
+                        // Add sorted items
+                        countryItems.forEach(item => {
+                            countryList.appendChild(item);
+                        });
+                        
+                        // Update UI after sorting
+                        filterCountries();
+                        hideLoading();
+                    }, 100); // Small delay for UI responsiveness
+                }
+                
+                // Filter countries based on search and continent
+                function filterCountries() {
+                    const searchTerm = searchInput.value.trim().toUpperCase();
+                    let visibleCount = 0;
+                    
+                    countryItems.forEach(item => {
+                        const countryName = item.getAttribute('data-name').toUpperCase();
+                        const continentMatch = currentContinent === 'All' || item.getAttribute('data-continent') === currentContinent;
+                        const searchMatch = countryName.includes(searchTerm);
+                        
+                        if (continentMatch && searchMatch) {
+                            item.style.display = '';
+                            visibleCount++;
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                    
+                    // Show/hide no results message
+                    if (visibleCount === 0) {
+                        countryList.style.display = 'none';
+                        noResults.style.display = 'block';
+                    } else {
+                        countryList.style.display = 'grid';
+                        noResults.style.display = 'none';
+                    }
+                    
+                    // Update heading and description
+                    updateContinentInfo();
+                }
+                
+                // Update continent heading and description
+                function updateContinentInfo() {
+                    const info = continentInfo[currentContinent];
+                    continentHeading.textContent = info.heading;
+                    continentDescription.textContent = info.description;
+                }
+                
+                // Set active tab
+                function setActiveTab(continent) {
+                    tabButtons.forEach(button => {
+                        if (button.getAttribute('data-continent') === continent) {
+                            button.classList.add('active');
+                        } else {
+                            button.classList.remove('active');
+                        }
+                    });
+                    
+                    currentContinent = continent;
+                    filterCountries();
+                }
+                
+                // Toggle sort direction
+                function toggleSort() {
+                    currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+                    sortButton.setAttribute('data-sort', currentSortDirection);
+                    sortCountries();
+                }
+                
+                // Show loading indicator
+                function showLoading() {
+                    loadingElement.style.display = 'block';
+                    countryList.style.opacity = '0.5';
+                }
+                
+                // Hide loading indicator
+                function hideLoading() {
+                    loadingElement.style.display = 'none';
+                    countryList.style.opacity = '1';
+                }
+                
+                // Set up event listeners
+                searchInput.addEventListener('input', filterCountries);
+                
+                tabButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        setActiveTab(this.getAttribute('data-continent'));
+                    });
+                });
+                
+                sortButton.addEventListener('click', toggleSort);
+                
+                // Initialize with default continent and sort
+                setActiveTab(currentContinent);
+                sortCountries();
+                
+                // Fix for image loading errors
+                document.querySelectorAll('.country-item img').forEach(img => {
+                    img.addEventListener('error', function() {
+                        this.src = '<?php echo esc_url($plugin_url . 'assets/placeholder-flag.svg'); ?>';
+                    });
+                });
+            });
+        </script>
+<?php
+    } else {
+        echo '<p class="visa-error-message">Unable to load countries data. Please try again later.</p>';
+    }
+
+    return ob_get_clean();
+}
+
+// Register the shortcode
+add_shortcode('visa_countries', 'visa_countries_list_shortcode');

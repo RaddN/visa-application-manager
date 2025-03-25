@@ -75,7 +75,7 @@ function ut_display_user_transactions_shortcode($atts)
     
         // Iterate through the fields to find the necessary values
         foreach ($fields as $field) {
-            if ($field['name'] === 'Select VISAThing Services') {
+            if ($field['name'] === 'Select TTGVISAHUB Services') {
                 $amount = isset($field['amount']) ? $field['amount'] : 'N/A'; // Assuming Amount is stored under this name
             } elseif ($field['name'] === 'visacata') {
                 $status = $field['value']; // Assuming Status is stored under this name

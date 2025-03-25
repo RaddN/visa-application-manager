@@ -10,7 +10,7 @@ if (!defined('ABSPATH')) {
         style="background:#F3F3FC">
         <div class="nav flex w-full justify-between">
             <div class="nav_brand"><a class="inline-block custom_link" href="/"><img
-                        alt="Visathing Logo" fetchpriority="high" width="144" height="0"
+                        alt="TTGVISAHUB Logo" fetchpriority="high" width="144" height="0"
                         decoding="async" data-nimg="1" class="logo" style="color:transparent"
                         src="/wp-content/uploads/2025/03/ttg-logo.png"></a>
                 <div class="user_greetings hidden md:block">
@@ -24,7 +24,7 @@ if (!defined('ABSPATH')) {
                             }
                             ?>
                             </h2>
-                    <p>Welcome back to the VISAThing Dashboard User</p>
+                    <p>Welcome back to the TTGVISAHUB Dashboard User</p>
                 </div>
             </div>
             <?php if (wp_is_mobile()) : ?>

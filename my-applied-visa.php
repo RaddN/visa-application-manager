@@ -83,10 +83,10 @@ function av_display_applied_visas_shortcode($atts)
         $amount = 'N/A';
         $status = 'N/A';
         $payment_method = 'N/A';
-    
+
         // Iterate through the fields to find the necessary values
         foreach ($fields as $field) {
-            if ($field['name'] === 'Select VISAThing Services') {
+            if ($field['name'] === 'Select TTGVISAHUB Services') {
                 $amount = isset($field['amount']) ? $field['amount'] : 'N/A'; // Assuming Amount is stored under this name
             } elseif ($field['name'] === 'visacata') {
                 $status = $field['value']; // Assuming Status is stored under this name
@@ -94,7 +94,7 @@ function av_display_applied_visas_shortcode($atts)
                 $payment_method = $field['value']; // Assuming Payment Method is stored under this name
             }
         }
-    
+
         // Create a table row
         $table_rows .= '<tr>';
         $table_rows .= '<td class="ant-table-cell">' . esc_html($row->entry_id) . '</td>';
@@ -9502,8 +9502,8 @@ function av_display_applied_visas_shortcode($atts)
                                                 <?php foreach ($entries_unpaid_visa as $entry): ?>
                                                     <div class="ant-ribbon-wrapper css-1588u1j">
                                                         <div class="applied_visa_card">
-                                                            <div class="title">                                                                
-                                                                <?php 
+                                                            <div class="title">
+                                                                <?php
                                                                 $going_to = '';
                                                                 $going_form = '';
                                                                 $visa_cata = '';
@@ -9520,7 +9520,8 @@ function av_display_applied_visas_shortcode($atts)
                                                                 }
 
                                                                 echo "<p>Applied for {$going_to} {$visa_cata} from {$going_form}</p>";
-                                                                // echo esc_html($entry->fields); ?>                                                                
+                                                                // echo esc_html($entry->fields); 
+                                                                ?>
                                                             </div>
                                                             <div class="content">
                                                                 <div class="id">
@@ -9588,11 +9589,16 @@ function av_display_applied_visas_shortcode($atts)
                                                                     </div>
                                                                 </div>
                                                                 <div class="separator"></div>
-                                                                <div class="ant-space css-1588u1j ant-space-vertical 2xl:mr-[90px]" style="gap: 16px;">
+                                                                <div class="ant-space css-1588u1j ant-space-vertical 2xl:mr-[90px] flex" style="gap: 16px;">
                                                                     <div class="ant-space-item">
                                                                         <a href="/<?php echo $atts["form_submit_page"] ?>/?entry_id=<?php echo esc_attr($entry->entry_id); ?>" target="_blank" class="ant-btn css-1588u1j ant-btn-primary ant-btn-lg w-full">
                                                                             <span>Continue Payment</span>
                                                                         </a>
+                                                                    </div>
+                                                                    <div class="ant-space-item">
+                                                                        <button onclick="viewDetails(<?php echo esc_attr($entry->entry_id); ?>)" class="ant-btn css-1588u1j ant-btn-default ant-btn-lg w-full">
+                                                                            <span>View Details</span>
+                                                                        </button>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -9657,10 +9663,46 @@ function av_display_applied_visas_shortcode($atts)
                             </div>
                     </div>
             </main>
+            <div id="entry-details-modal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="entryDetailsModalLabel" aria-hidden="true" style="display: none;">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="entryDetailsModalLabel">Entry Details</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <!-- Entry details will be loaded here via AJAX -->
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
         </div>
         </main>
+
         </div>
+
+        <?php wp_enqueue_script('jquery'); ?>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+        <style>
+            div#entry-details-modal {
+                position: fixed;
+                top: 0;
+                background: #fff;
+                right: 0;
+                transition: all 1s;
+                padding: 3rem;
+                box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
+                height: 100vh;
+            }
+        </style>
         <script>
             jQuery(document).ready(function($) {
                 function updateInkBar(tabElement) {
@@ -9700,8 +9742,49 @@ function av_display_applied_visas_shortcode($atts)
                     $("." + $(this).data("node-key")).show();
                     updateInkBar($(this)); // Set the ink bar initially
                 });
+
             });
+
+            function viewDetails(entryId) {
+                // Make an AJAX request to fetch the details of the entry
+                $.ajax({
+                    url: '<?php echo admin_url('admin-ajax.php'); ?>', // URL to the WordPress AJAX handler
+                    type: 'POST',
+                    data: {
+                        action: 'fetch_entry_details', // Action name for the AJAX handler
+                        id: entryId
+                    },
+                    success: function(response) {
+                        // Assuming the response is HTML content, display it in a modal or a specific div
+                        console.log(response);
+                        var fields = JSON.parse(response.data.fields);
+                        $('#entry-details-modal .modal-body').html(`
+                            <div class="entry-details">
+                                <h5>Visa Application Details</h5>
+                                <p><strong>First Name:</strong> ${fields['13'] ? fields['13'].value : 'N/A'}</p>
+                                <p><strong>Last Name:</strong> ${fields['14'] ? fields['14'].value : 'N/A'}</p>
+                                <p><strong>Email:</strong> ${fields['15'] ? fields['15'].value : 'N/A'}</p>
+                                <p><strong>Phone Number:</strong> ${fields['16'] ? fields['16'].value : 'N/A'}</p>
+                                <p><strong>Address:</strong> ${fields['31'] ? fields['31'].value : 'N/A'}</p>
+                                <p><strong>City:</strong> ${fields['32'] ? fields['32'].value : 'N/A'}</p>
+                                <p><strong>State/Province:</strong> ${fields['33'] ? fields['33'].value : 'N/A'}</p>
+                                <p><strong>Given Name:</strong> ${fields['21'] ? fields['21'].value : 'N/A'}</p>
+                                <p><strong>Surname:</strong> ${fields['22'] ? fields['22'].value : 'N/A'}</p>
+                                <p><strong>Passport Number:</strong> ${fields['25'] ? fields['25'].value : 'N/A'}</p>
+                                <p><strong>Visa Category:</strong> ${fields['63'] ? fields['63'].value : 'N/A'}</p>
+                                <p><strong>Service Selected:</strong> ${fields['52'] ? fields['52'].value : 'N/A'}</p>
+                                <p><strong>Total Amount:</strong> ${fields['67'] ? fields['67'].value : 'N/A'}</p>
+                            </div>
+                        `);
+                        $('#entry-details-modal').modal('show');
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error fetching entry details:', error);
+                    }
+                });
+            }
         </script>
+
 
         <p aria-live="assertive" id="__next-route-announcer__" role="alert"
             style="border: 0px; clip: rect(0px, 0px, 0px, 0px); height: 1px; margin: -1px; overflow: hidden; padding: 0px; position: absolute; top: 0px; width: 1px; white-space: nowrap; overflow-wrap: normal;">
@@ -9715,3 +9798,36 @@ function av_display_applied_visas_shortcode($atts)
 
 // Register the shortcode
 add_shortcode('applied_visas', 'av_display_applied_visas_shortcode');
+
+// Add AJAX action for fetching entry details
+add_action('wp_ajax_fetch_entry_details', 'fetch_entry_details');
+add_action('wp_ajax_nopriv_fetch_entry_details', 'fetch_entry_details');
+
+function fetch_entry_details()
+{
+    // Validate the request
+    if (!isset($_POST['id'])) {
+        wp_send_json_error('Invalid request');
+        return;
+    }
+
+    $entry_id = intval($_POST['id']);
+    // Fetch the entry details from the database (replace with your actual query)
+    $entry_details = get_entry_details($entry_id);
+
+    if ($entry_details) {
+        wp_send_json_success($entry_details);
+    } else {
+        wp_send_json_error('Entry not found');
+    }
+}
+
+function get_entry_details($entry_id)
+{
+    // Replace this with your actual database query to fetch entry details
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'wpforms_entries';
+    $entry = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE entry_id = %d", $entry_id));
+
+    return $entry;
+}
