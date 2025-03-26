@@ -732,7 +732,7 @@ function tracking_id_shortcode($atts)
 
     ?>
             <style>
-                .tracking-table td.ant-table-cell.status p {
+                .timeline .status span {
                     background: #4a5568;
                     width: max-content;
                     color: #ffffff;
@@ -740,124 +740,252 @@ function tracking_id_shortcode($atts)
                     padding: 0.4rem;
                 }
 
-                .tracking-table td.ant-table-cell.rejected p {
+                .timeline .timeline-contents p {
+                    margin: 0;
+                }
+
+                .timeline .status.rejected span {
                     background: #e53e3e;
                 }
 
-                .tracking-table td.ant-table-cell.approved p {
+                .timeline .status.approved span {
                     background: #38a169;
                 }
 
-                .tracking-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin-top: 20px;
-                    font-family: Arial, sans-serif;
+                .timeline {
+                    position: relative;
+                    /* max-width: 800px;
+                    margin: auto;
+                    padding: 20px; */
+                    /* background: white; */
+                    border-radius: 8px;
+                    display: flex;
+                    gap: 2rem;
                 }
 
-                .tracking-table th,
-                .tracking-table td {
-                    padding: 12px;
-                    text-align: left;
-                    border: 1px solid #ddd;
+                .application-info {
+                    margin-bottom: 20px;
+                    padding: 40px;
+                    background-color: #e7f3fe;
+                    border: 1px solid #b3e0fd;
+                    border-radius: 5px;
                 }
 
-                .tracking-table th {
-                    background-color: #f4f4f4;
-                    font-weight: bold;
+                .timeline-contents {
+                    padding-left: 2rem;
+                    position: relative;
                 }
 
-                .tracking-table tbody tr:nth-child(even) {
+                .timeline-contents:before {
+                    content: "";
+                    height: 82%;
+                    width: 5px;
+                    background: #b1d9f5;
+                    position: absolute;
+                    left: 11px;
+                    top: 39px;
+                    z-index: -1;
+                }
+
+                .timeline-contents::after {
+                    content: "";
+                    height: calc(82% - 59%);
+                    width: 5px;
+                    background: #3498db;
+                    position: absolute;
+                    left: 11px;
+                    top: 41px;
+                }
+
+                .timeline-item {
+                    position: relative;
+                    margin: 20px 0;
+                    padding: 20px;
+                    background-color: white;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                    transition: background-color 0.3s;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 1rem;
+                }
+
+                .timeline-item:hover {
                     background-color: #f9f9f9;
                 }
 
-                .tracking-table tbody tr:hover {
-                    background-color: #f1f1f1;
+                .timeline-item:before {
+                    content: '';
+                    position: absolute;
+                    left: -30px;
+                    top: 20px;
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 50%;
+                    background: #3498db;
+                    box-shadow: 0 0 0 4px white;
                 }
 
-                .tracking-table .ant-empty-description {
-                    color: #6b7280;
-                    font-size: 14px;
-                    text-align: center;
+                .timeline-item.failed::before {
+                    background: #a7d8f9;
                 }
 
-                .tracking-card {
-                    display: none;
+                .timeline h3 {
+                    margin: 0 0 10px 0;
+                    font-size: 1.2em;
+                    color: #333;
+                }
+
+                .timeline .checkmark {
+                    color: green;
+                    font-weight: bold;
+                }
+
+                .timeline .status {
+                    font-size: 0.9em;
+                    color: #666;
+                    margin: 5px 0;
+                }
+
+                .timeline .rejection-reason {
+                    color: red;
+                    font-style: italic;
+                }
+
+                .timeline span {
+                    font-size: 0.85em;
+                    color: #999;
+                    margin-left: auto;
+                    /* Align to the right */
+                }
+
+                .timeline a {
+                    color: #3498db;
+                    text-decoration: none;
+                    font-weight: bold;
+                }
+
+                .timeline a:hover {
+                    text-decoration: underline;
                 }
 
                 @media (max-width: 600px) {
-                    .tracking-table {
-                        display: none;
-                    }
-
-                    .tracking-card {
-                        display: block;
-                        background-color: #fff;
+                    .timeline {
                         padding: 15px;
-                        border-radius: 8px;
-                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-                        margin-bottom: 15px;
+                        display: block;
+                        padding: 0;
                     }
 
-                    .tracking-card h3 {
-                        margin: 0 0 10px;
-                        font-size: 18px;
-                        color: #165eaf;
+                    .timeline-item {
+                        padding: 15px;
+                        display: block;
                     }
 
-                    .tracking-card p {
-                        margin: 5px 0;
-                        font-size: 14px;
-                        color: #333;
+                    .application-info {
+                        padding: 10px;
+                    }
+
+                    .timeline-item:before {
+                        width: 15px;
+                        height: 15px;
+                    }
+
+                    .timeline-contents:before {
+                        left: 8px;
+                    }
+
+                    .timeline-contents::after {
+                        left: 8px;
+                        top: 39px;
                     }
                 }
             </style>
-            <table class="tracking-table">
-                <thead>
-                    <tr>
-                        <th>Tracking ID</th>
-                        <th>Going Form</th>
-                        <th>Going To</th>
-                        <th>Category</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if ($table_rows !== '') {
-                        echo $table_rows;
-                    } else { ?>
-                        <tr class="ant-table-placeholder">
-                            <td class="ant-table-cell" colspan="5">
-                                <div class="ant-empty ant-empty-normal">
-                                    <div class="ant-empty-image">
-                                        <svg width="64" height="41" viewBox="0 0 64 41" xmlns="http://www.w3.org/2000/svg">
-                                            <title>Simple Empty</title>
-                                            <g transform="translate(0 1)" fill="none" fill-rule="evenodd">
-                                                <ellipse fill="#f5f5f5" cx="32" cy="33" rx="32" ry="7"></ellipse>
-                                                <g fill-rule="nonzero" stroke="#d9d9d9">
-                                                    <path d="M55 12.76L44.854 1.258C44.367.474 43.656 0 42.907 0H21.093c-.749 0-1.46.474-1.947 1.257L9 12.761V22h46v-9.24z"></path>
-                                                    <path d="M41.613 15.931c0-1.605.994-2.93 2.227-2.931H55v18.137C55 33.26 53.68 35 52.05 35h-40.1C10.32 35 9 33.259 9 31.137V13h11.16c1.233 0 2.227 1.323 2.227 2.928v.022c0 1.605 1.005 2.901 2.237 2.901h14.752c1.232 0 2.237-1.308 2.237-2.913v-.007z" fill="#fafafa"></path>
-                                                </g>
-                                            </g>
-                                        </svg>
-                                    </div>
-                                    <div class="ant-empty-description">No data</div>
-                                </div>
-                            </td>
-                        </tr>
-                    <?php } ?>
-                </tbody>
-            </table>
-            <div class="tracking-cards">
-                <?php foreach ($fields_data as $fields) { ?>
-                    <div class="tracking-card">
-                        <h3>Tracking ID: <?php echo esc_html($row->entry_id); ?></h3>
-                        <p><strong>Going Form:</strong> <?php echo esc_html($going_form); ?></p>
-                        <p><strong>Going To:</strong> <?php echo esc_html($going_to); ?></p>
-                        <p><strong>Category:</strong> <?php echo esc_html($visa_cata); ?></p>
-                        <p><strong>Status:</strong> <?php echo esc_html($row->status); ?></p>
+            <?php $application_status = get_application_status_by_entry_id($row->entry_id);
+            ?>
+            <div class="timeline">
+                <div class="application-info">
+                    <h3>Application Info</h3>
+                    <p><strong>Tracking ID:</strong> <?php echo esc_html($application_status["entry_id"]); ?></p>
+                    <p><strong>Going From:</strong> <?php echo esc_html(ucwords($going_form === "" ? "N/A" : $going_form ?? "N/A")); ?></p>
+                    <p><strong>Going To:</strong> <?php echo esc_html(ucwords($going_to === "" ? "N/A" : $going_to ?? "N/A")); ?></p>
+                    <p><strong>Category:</strong> <?php echo esc_html(ucwords($visa_cata === "" ? "N/A" : $visa_cata ?? "N/A")); ?></p>
+                    <p class="status <?php echo esc_html($application_status["payment_status"]); ?>"><strong>Payment Status:</strong> <span><?php echo esc_html($application_status["payment_status"]); ?></span></p>
+                </div>
+
+                <div class="timeline-contents">
+                    <div class="timeline-item success">
+                        <div>
+                            <h3>Application Received</h3>
+                            <p class="status">Status: <?php echo esc_html($application_status["application_received_status"]); ?></p>
+                        </div>
+                        <div>
+                            <span>Received On: <?php echo esc_html($application_status["application_received_status_updated_at"]); ?></span>
+                        </div>
                     </div>
-                <?php } ?>
+                    <div class="timeline-item <?php echo $application_status["document_process_status"] === "Rejected" ? 'failed' : 'success'; ?>">
+                        <div>
+                            <h3>Document Process</h3>
+                            <p class="status">
+                                <?php echo $application_status["document_process_status"] === "Not Added" ? 'Not added yet. <a href="/user/documents/" target="_blank">Add your document now</a>.' : 'Status: ' . esc_html($application_status["document_process_status"]); ?></p>
+                        </div>
+                        <div>
+                            <span>Updated On: <?php echo esc_html($application_status["document_process_status_updated_at"]); ?></span>
+                        </div>
+                    </div>
+                    <?php if (!empty($application_status["document_rejection_reason"]) && $application_status["document_process_status"] !== "Done" && $application_status["document_process_status"] !== "Pending"): ?>
+                        <style>
+                            .timeline-contents::after {
+                                height: calc(82% - 64%);
+                            }
+                        </style>
+                        <div class="timeline-item failed">
+                            <div>
+                                <h3>Document Rejection Reason</h3>
+                                <p class="rejection-reason"><?php echo esc_html($application_status["document_rejection_reason"]); ?></p>
+                            </div>
+                            <div>
+                                <span>Updated On: <?php echo esc_html($application_status["document_process_status_updated_at"]); ?></span>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                    <div class="timeline-item <?php echo $application_status["submitted_for_visa_status"] === "Submitted" ? 'success' : 'failed'; ?>">
+                        <?php echo $application_status["submitted_for_visa_status"] === "Submitted" ? '<style>.timeline-contents::after {height: calc(82% - 31%);}</style>' : "" ?>
+                        <div>
+                            <h3>Submitted For Visa</h3>
+                            <p class="status">Status: <?php echo esc_html($application_status["submitted_for_visa_status"]); ?></p>
+                        </div>
+                        <div>
+                            <span>Updated On: <?php echo esc_html($application_status["submitted_for_visa_status_updated_at"]); ?></span>
+                        </div>
+                    </div>
+                    <div class="timeline-item <?php echo $application_status["immigration_status"] === "Approved" ? 'success' : 'failed'; ?>">
+                        <div>
+                            <h3>Immigration Status</h3>
+                            <p class="status">Status: <?php echo esc_html($application_status["immigration_status"]); ?></p>
+                        </div>
+                        <div>
+                            <span>Updated On: <?php echo esc_html($application_status["immigration_status_updated_at"]); ?></span>
+                        </div>
+                    </div>
+                    <?php if (!empty($application_status["immigration_rejection_reason"]) && $application_status["immigration_status"] !== "Approved" && $application_status["immigration_status"] !== "Pending"): ?>
+                        <style>
+                            .timeline-contents::after {
+                                height: calc(82% - 66%);
+                            }
+                        </style>
+                        <?php echo $application_status["submitted_for_visa_status"] === "Submitted" ? '<style>.timeline-contents::after {height: calc(82% - 44%);}</style>' : "" ?>
+                        <div class="timeline-item failed">
+                            <div>
+                                <h3>Immigration Rejection Reason</h3>
+                                <p class="rejection-reason"><?php echo esc_html($application_status["immigration_rejection_reason"]); ?></p>
+                            </div>
+                            <div>
+                                <span>Updated On: <?php echo esc_html($application_status["immigration_status_updated_at"]); ?></span>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
         <?php
         } else { ?>
@@ -972,27 +1100,72 @@ function visa_fee_applicants_page()
                         const popup = document.createElement('div');
                         popup.classList.add('popup-overlay');
                         popup.innerHTML = `
-                    <div class="popup-content">
-                    <h2>Update Status for User ID: ${userId}</h2>
-                    <form id="update-status-form">
-                        <label for="entry_id">Select Entry ID:</label>
-                        <select name="entry_id" id="entry_id" required>
-                        <option value="">Select Entry ID</option>
-                        ${getEntryIds(userId)}
-                        </select>
-                        <label for="status">Select Status:</label>
-                        <select name="status" id="status">
-                        <option value="pending">Pending</option>
-                        <option value="approved">Approved</option>
-                        <option value="rejected">Rejected</option>
-                        </select>
-                        <input type="hidden" name="user_id" value="${userId}">
-                        <button type="submit" class="button button-primary">Update</button>
-                        <button type="button" class="button button-secondary" id="close-popup">Cancel</button>
-                    </form>
-                    </div>
-                `;
+                <div class="popup-content">
+                <h2>Update Status for User ID: ${userId}</h2>
+                <form id="update-status-form">
+                <label for="entry_id">Select Entry ID:</label>
+                <select name="entry_id" id="entry_id" required>
+                <option value="">Select Entry ID</option>
+                ${getEntryIds(userId)}
+                </select>
+                
+                <label for="status">Payment Status:</label>
+                <select name="status" id="status">
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="Not Paid">Not Paid</option>
+                </select>
+                
+                <label for="application_received_status">Application Received Status:</label>
+                <select name="application_received_status" id="application_received_status">
+                <option value="Pending">Pending</option>
+                <option value="Rejected">Rejected</option>
+                <option value="Done">Done</option>
+                </select>
+                
+                <label for="document_process_status">Document Process Status:</label>
+                <select name="document_process_status" id="document_process_status">
+                <option value="Not Added">Not Added</option>
+                <option value="Pending">Pending</option>
+                <option value="Rejected">Rejected</option>
+                <option value="Done">Done</option>
+                </select>
+                
+                <label for="document_rejection_reason">Document Rejection Reason:</label>
+                <textarea name="document_rejection_reason" id="document_rejection_reason" placeholder="Provide reason if rejected"></textarea>
+                
+                <label for="submitted_for_visa_status">Submitted for Visa Status:</label>
+                <select name="submitted_for_visa_status" id="submitted_for_visa_status">
+                <option value="Submitted">Submitted</option>
+                <option value="Not Submitted">Not Submitted</option>
+                </select>
+                
+                <label for="immigration_status">Immigration Status:</label>
+                <select name="immigration_status" id="immigration_status">
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+                <option value="Pending">Pending</option>
+                </select>
+                
+                <label for="immigration_rejection_reason">Immigration Rejection Reason:</label>
+                <textarea name="immigration_rejection_reason" id="immigration_rejection_reason" placeholder="Provide reason if rejected"></textarea>
+                
+                <input type="hidden" name="user_id" value="${userId}">
+                <button type="submit" class="button button-primary">Update</button>
+                <button type="button" class="button button-secondary" id="close-popup">Cancel</button>
+                </form>
+                </div>
+            `;
                         document.body.appendChild(popup);
+
+                        const entryIdSelect = document.getElementById('entry_id');
+                        entryIdSelect.addEventListener('change', function() {
+                            const entryId = this.value;
+                            if (entryId) {
+                                fetchEntryDetails(entryId);
+                            }
+                        });
 
                         document.getElementById('close-popup').addEventListener('click', function() {
                             document.body.removeChild(popup);
@@ -1024,27 +1197,58 @@ function visa_fee_applicants_page()
                         });
                     });
                 });
-            });
 
-            function getEntryIds(userId) {
-                let options = '';
-                <?php
-                $subscribers = get_users(array('orderby' => 'user_login', 'order' => 'ASC'));
-                foreach ($subscribers as $subscriber) {
-                    $entry_ids = $wpdb->get_col($wpdb->prepare(
-                        "SELECT entry_id FROM {$wpdb->prefix}wpforms_entries WHERE user_id = %d AND form_id = %d",
-                        $subscriber->ID,
-                        get_option('application_form_id', 17)
-                    ));
-                    echo "if (userId == '{$subscriber->ID}') {";
-                    foreach ($entry_ids as $entry_id) {
-                        echo "options += '<option value=\"{$entry_id}\">{$entry_id}</option>';";
-                    }
-                    echo "}";
+                function fetchEntryDetails(entryId) {
+                    const formData = new FormData();
+                    formData.append('action', 'fetch_entry_status_details');
+                    formData.append('entry_id', entryId);
+
+                    fetch(ajaxurl, {
+                            method: 'POST',
+                            body: formData,
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success && data.data && data.data.details) {
+                                const details = data.data.details;
+                                document.getElementById('document_process_status').value = details.document_process_status || 'not_added';
+                                document.getElementById('document_rejection_reason').value = details.document_rejection_reason || '';
+                                document.getElementById('status').value = details.payment_status || 'pending';
+                                document.getElementById('application_received_status').value = details.application_received_status || 'pending';
+                                document.getElementById('submitted_for_visa_status').value = details.submitted_for_visa_status || 'Not Submitted';
+                                document.getElementById('immigration_status').value = details.immigration_status || 'pending';
+                                document.getElementById('immigration_rejection_reason').value = details.immigration_rejection_reason || '';
+                            } else {
+                                console.error('Error: data.details is undefined or improperly structured.');
+                                alert('Failed to fetch entry details.');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('An error occurred while fetching entry details.');
+                        });
                 }
-                ?>
-                return options;
-            }
+
+                function getEntryIds(userId) {
+                    let options = '';
+                    <?php
+                    $subscribers = get_users(array('orderby' => 'user_login', 'order' => 'ASC'));
+                    foreach ($subscribers as $subscriber) {
+                        $entry_ids = $wpdb->get_col($wpdb->prepare(
+                            "SELECT entry_id FROM {$wpdb->prefix}wpforms_entries WHERE user_id = %d AND form_id = %d",
+                            $subscriber->ID,
+                            get_option('application_form_id', 17)
+                        ));
+                        echo "if (userId == '{$subscriber->ID}') {";
+                        foreach ($entry_ids as $entry_id) {
+                            echo "options += '<option value=\"{$entry_id}\">{$entry_id}</option>';";
+                        }
+                        echo "}";
+                    }
+                    ?>
+                    return options;
+                }
+            });
         </script>
         <style>
             .popup-overlay {
@@ -1053,7 +1257,7 @@ function visa_fee_applicants_page()
                 left: 0;
                 width: 100%;
                 height: 100%;
-                background: rgba(0, 0, 0, 0.5);
+                background: rgba(0, 0, 0, 0.6);
                 display: flex;
                 justify-content: center;
                 align-items: center;
@@ -1061,22 +1265,113 @@ function visa_fee_applicants_page()
             }
 
             .popup-content {
-                background: #fff;
-                padding: 20px;
-                border-radius: 8px;
-                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-                width: 300px;
-                text-align: center;
+                background: #ffffff;
+                padding: 30px;
+                border-radius: 10px;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+                width: 70%;
+                max-width: 90%;
+                text-align: left;
+                font-family: Arial, sans-serif;
             }
 
             .popup-content h2 {
                 margin-top: 0;
+                font-size: 1.5rem;
+                color: #333333;
+                border-bottom: 2px solid #f0f0f0;
+                padding-bottom: 10px;
+                margin-bottom: 20px;
             }
 
             .popup-content form {
                 display: flex;
                 flex-direction: column;
-                gap: 10px;
+                gap: 15px;
+            }
+
+            @media (min-width: 768px) {
+                .popup-content form {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 15px;
+                }
+            }
+
+            .popup-content label {
+                font-weight: bold;
+                font-size: 0.9rem;
+                color: #555555;
+            }
+
+            .popup-content select,
+            .popup-content textarea,
+            .popup-content input[type="text"] {
+                width: 100%;
+                padding: 10px;
+                border: 1px solid #cccccc;
+                border-radius: 5px;
+                font-size: 0.9rem;
+                color: #333333;
+                background-color: #f9f9f9;
+                transition: border-color 0.3s;
+            }
+
+            .popup-content select:focus,
+            .popup-content textarea:focus,
+            .popup-content input[type="text"]:focus {
+                border-color: #0073aa;
+                outline: none;
+                background-color: #ffffff;
+            }
+
+            .popup-content textarea {
+                resize: vertical;
+                min-height: 80px;
+                max-width: 400px;
+                width: 73%;
+            }
+
+            .popup-content button {
+                padding: 10px 15px;
+                font-size: 0.9rem;
+                border-radius: 5px;
+                cursor: pointer;
+                transition: background-color 0.3s, color 0.3s;
+            }
+
+            .popup-content .button-primary {
+                background-color: #0073aa;
+                color: #ffffff;
+                border: none;
+            }
+
+            .popup-content .button-primary:hover {
+                background-color: #005177;
+            }
+
+            .popup-content .button-secondary {
+                background-color: #f0f0f0;
+                color: #333333;
+                border: none;
+            }
+
+            .popup-content .button-secondary:hover {
+                background-color: #e0e0e0;
+            }
+
+            @media (max-width: 480px) {
+                .popup-content {
+                    padding: 20px;
+                }
+
+                .popup-content h2 {
+                    font-size: 1.2rem;
+                }
+
+                .popup-content button {
+                    font-size: 0.8rem;
+                }
             }
         </style>
 
@@ -1094,14 +1389,95 @@ function update_entry_status()
 
     $entry_id = intval($_POST['entry_id']);
     $status = sanitize_text_field($_POST['status']);
+    $application_received_status = sanitize_text_field($_POST['application_received_status']);
+    $document_process_status = sanitize_text_field($_POST['document_process_status']);
+    $document_rejection_reason = sanitize_textarea_field($_POST['document_rejection_reason']);
+    $submitted_for_visa_status = sanitize_text_field($_POST['submitted_for_visa_status']);
+    $immigration_status = sanitize_text_field($_POST['immigration_status']);
+    $immigration_rejection_reason = sanitize_textarea_field($_POST['immigration_rejection_reason']);
 
+    $timestamps = [
+        'application_received_status_updated_at' => null,
+        'document_process_status_updated_at' => null,
+        'submitted_for_visa_status_updated_at' => null,
+        'immigration_status_updated_at' => null,
+    ];
+
+    // Update timestamps if statuses have changed
+    $existing_entry = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}application_status WHERE entry_id = %d",
+        $entry_id
+    ));
+
+    if ($existing_entry) {
+        if ($existing_entry->application_received_status !== $application_received_status) {
+            $timestamps['application_received_status_updated_at'] = current_time('mysql');
+        }
+        if ($existing_entry->document_process_status !== $document_process_status) {
+            $timestamps['document_process_status_updated_at'] = current_time('mysql');
+        }
+        if ($existing_entry->submitted_for_visa_status !== $submitted_for_visa_status) {
+            $timestamps['submitted_for_visa_status_updated_at'] = current_time('mysql');
+        }
+        if ($existing_entry->immigration_status !== $immigration_status) {
+            $timestamps['immigration_status_updated_at'] = current_time('mysql');
+        }
+    } else {
+        $timestamps = array_map(fn() => current_time('mysql'), $timestamps);
+    }
+
+    // Update wpforms_entries table
     $updated = $wpdb->update(
         "{$wpdb->prefix}wpforms_entries",
-        array('status' => $status),
-        array('entry_id' => $entry_id),
-        array('%s'),
-        array('%d')
+        ['status' => $status],
+        ['entry_id' => $entry_id],
+        ['%s'],
+        ['%d']
     );
+
+    if ($existing_entry) {
+        // Update existing record in wp_application_status
+        $wpdb->update(
+            "{$wpdb->prefix}application_status",
+            array_merge(
+                [
+                    'payment_status' => $status,
+                    'application_received_status' => $application_received_status,
+                    'document_process_status' => $document_process_status,
+                    'document_rejection_reason' => $document_rejection_reason,
+                    'submitted_for_visa_status' => $submitted_for_visa_status,
+                    'immigration_status' => $immigration_status,
+                    'immigration_rejection_reason' => $immigration_rejection_reason,
+                    'updated_at' => current_time('mysql'),
+                ],
+                array_filter($timestamps)
+            ),
+            ['entry_id' => $entry_id],
+            ['%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s'],
+            ['%d']
+        );
+    } else {
+        // Insert new record into wp_application_status
+        $wpdb->insert(
+            "{$wpdb->prefix}application_status",
+            array_merge(
+                [
+                    'entry_id' => $entry_id,
+                    'payment_status' => $status,
+                    'application_received_status' => $application_received_status,
+                    'document_process_status' => $document_process_status,
+                    'document_rejection_reason' => $document_rejection_reason,
+                    'submitted_for_visa_status' => $submitted_for_visa_status,
+                    'immigration_status' => $immigration_status,
+                    'immigration_rejection_reason' => $immigration_rejection_reason,
+                    'created_at' => current_time('mysql'),
+                    'updated_at' => current_time('mysql'),
+                ],
+                $timestamps
+            ),
+            ['%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s']
+        );
+    }
 
     if ($updated !== false) {
         wp_send_json_success();
@@ -1475,5 +1851,37 @@ function delete_apply_page($page_id)
         echo '<div class="notice notice-success"><p>Page deleted successfully.</p></div>';
     } else {
         echo '<div class="notice notice-error"><p>Failed to delete page.</p></div>';
+    }
+}
+function get_application_status_by_entry_id($entry_id)
+{
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'application_status';
+
+    $query = $wpdb->prepare(
+        "SELECT * FROM $table_name WHERE entry_id = %d",
+        intval($entry_id)
+    );
+
+    $result = $wpdb->get_row($query, ARRAY_A);
+
+    return $result;
+}
+
+add_action('wp_ajax_fetch_entry_status_details', 'fetch_entry_status_details');
+function fetch_entry_status_details()
+{
+    if (!isset($_POST['entry_id'])) {
+        wp_send_json_error(['message' => 'Entry ID is required.']);
+    }
+
+    $entry_id = intval($_POST['entry_id']);
+
+    $entry_details = get_application_status_by_entry_id($entry_id);
+
+    if ($entry_details) {
+        wp_send_json_success(['details' => $entry_details]);
+    } else {
+        wp_send_json_error(['message' => 'No details found for the provided Entry ID.']);
     }
 }

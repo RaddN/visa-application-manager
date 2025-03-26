@@ -820,6 +820,27 @@ function create_user_info_table()
     ) $charset_collate;";
 
     dbDelta($sql14);
+
+    // Create application status table
+    $application_status_table = $wpdb->prefix . 'application_status';
+    $sql15 = "CREATE TABLE IF NOT EXISTS $application_status_table (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        entry_id INT NOT NULL,
+        payment_status VARCHAR(50) NOT NULL,
+        application_received_status ENUM('Pending', 'Rejected', 'Done') NOT NULL DEFAULT 'Pending',
+        document_process_status ENUM('Not Added', 'Pending', 'Rejected', 'Done') NOT NULL DEFAULT 'Not Added',
+        document_rejection_reason TEXT DEFAULT NULL,
+        submitted_for_visa_status ENUM('Submitted', 'Not Submitted') NOT NULL DEFAULT 'Not Submitted',
+        immigration_status ENUM('Approved', 'Rejected', 'Pending') NOT NULL DEFAULT 'Pending',
+        immigration_rejection_reason TEXT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        application_received_status_updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+        document_process_status_updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+        submitted_for_visa_status_updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+        immigration_status_updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+    ) $charset_collate;";
+    dbDelta($sql15);
 }
 
 register_activation_hook(__FILE__, 'create_user_info_table');
