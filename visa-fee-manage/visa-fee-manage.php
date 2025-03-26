@@ -1220,7 +1220,6 @@ function visa_fee_applicants_page()
                                 document.getElementById('immigration_rejection_reason').value = details.immigration_rejection_reason || '';
                             } else {
                                 console.error('Error: data.details is undefined or improperly structured.');
-                                alert('Failed to fetch entry details.');
                             }
                         })
                         .catch(error => {
