@@ -906,31 +906,31 @@ function tracking_id_shortcode($atts)
             <div class="timeline">
                 <div class="application-info">
                     <h3>Application Info</h3>
-                    <p><strong>Tracking ID:</strong> <?php echo esc_html($application_status["entry_id"]); ?></p>
+                    <p><strong>Tracking ID:</strong> <?php echo esc_html($row->entry_id); ?></p>
                     <p><strong>Going From:</strong> <?php echo esc_html(ucwords($going_form === "" ? "N/A" : $going_form ?? "N/A")); ?></p>
                     <p><strong>Going To:</strong> <?php echo esc_html(ucwords($going_to === "" ? "N/A" : $going_to ?? "N/A")); ?></p>
                     <p><strong>Category:</strong> <?php echo esc_html(ucwords($visa_cata === "" ? "N/A" : $visa_cata ?? "N/A")); ?></p>
-                    <p class="status <?php echo esc_html($application_status["payment_status"]); ?>"><strong>Payment Status:</strong> <span><?php echo esc_html($application_status["payment_status"]); ?></span></p>
+                    <p class="status <?php echo esc_html($application_status["payment_status"]); ?>"><strong>Payment Status:</strong> <span><?php echo esc_html($application_status["payment_status"]??"Pending"); ?></span></p>
                 </div>
 
                 <div class="timeline-contents">
                     <div class="timeline-item success">
                         <div>
                             <h3>Application Received</h3>
-                            <p class="status">Status: <?php echo esc_html($application_status["application_received_status"]); ?></p>
+                            <p class="status">Status: <?php echo esc_html($application_status["application_received_status"]??"Pending"); ?></p>
                         </div>
                         <div>
-                            <span>Received On: <?php echo esc_html($application_status["application_received_status_updated_at"]); ?></span>
+                            <span>Received On: <?php echo esc_html($application_status["application_received_status_updated_at"]??"N/A"); ?></span>
                         </div>
                     </div>
                     <div class="timeline-item <?php echo $application_status["document_process_status"] === "Rejected" ? 'failed' : 'success'; ?>">
                         <div>
                             <h3>Document Process</h3>
                             <p class="status">
-                                <?php echo $application_status["document_process_status"] === "Not Added" ? 'Not added yet. <a href="/user/documents/" target="_blank">Add your document now</a>.' : 'Status: ' . esc_html($application_status["document_process_status"]); ?></p>
+                                <?php echo $application_status["document_process_status"]??"" === "Not Added" ? 'Not added yet. <a href="/user/documents/" target="_blank">Add your document now</a>.' : 'Status: ' . esc_html($application_status["document_process_status"]??"Pending"); ?></p>
                         </div>
                         <div>
-                            <span>Updated On: <?php echo esc_html($application_status["document_process_status_updated_at"]); ?></span>
+                            <span>Updated On: <?php echo esc_html($application_status["document_process_status_updated_at"]??"N/A"); ?></span>
                         </div>
                     </div>
                     <?php if (!empty($application_status["document_rejection_reason"]) && $application_status["document_process_status"] !== "Done" && $application_status["document_process_status"] !== "Pending"): ?>
@@ -950,22 +950,22 @@ function tracking_id_shortcode($atts)
                         </div>
                     <?php endif; ?>
                     <div class="timeline-item <?php echo $application_status["submitted_for_visa_status"] === "Submitted" ? 'success' : 'failed'; ?>">
-                        <?php echo $application_status["submitted_for_visa_status"] === "Submitted" ? '<style>.timeline-contents::after {height: calc(82% - 31%);}</style>' : "" ?>
+                        <?php echo $application_status["submitted_for_visa_status"]??"" === "Submitted" ? '<style>.timeline-contents::after {height: calc(82% - 31%);}</style>' : "" ?>
                         <div>
                             <h3>Submitted For Visa</h3>
-                            <p class="status">Status: <?php echo esc_html($application_status["submitted_for_visa_status"]); ?></p>
+                            <p class="status">Status: <?php echo esc_html($application_status["submitted_for_visa_status"]??"Pending"); ?></p>
                         </div>
                         <div>
-                            <span>Updated On: <?php echo esc_html($application_status["submitted_for_visa_status_updated_at"]); ?></span>
+                            <span>Updated On: <?php echo esc_html($application_status["submitted_for_visa_status_updated_at"]??"N/A"); ?></span>
                         </div>
                     </div>
                     <div class="timeline-item <?php echo $application_status["immigration_status"] === "Approved" ? 'success' : 'failed'; ?>">
                         <div>
                             <h3>Immigration Status</h3>
-                            <p class="status">Status: <?php echo esc_html($application_status["immigration_status"]); ?></p>
+                            <p class="status">Status: <?php echo esc_html($application_status["immigration_status"]??"Pending"); ?></p>
                         </div>
                         <div>
-                            <span>Updated On: <?php echo esc_html($application_status["immigration_status_updated_at"]); ?></span>
+                            <span>Updated On: <?php echo esc_html($application_status["immigration_status_updated_at"]??"N/A"); ?></span>
                         </div>
                     </div>
                     <?php if (!empty($application_status["immigration_rejection_reason"]) && $application_status["immigration_status"] !== "Approved" && $application_status["immigration_status"] !== "Pending"): ?>
