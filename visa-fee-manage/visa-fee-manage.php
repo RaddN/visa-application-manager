@@ -373,118 +373,118 @@ function display_visa_fees()
     echo '
     
     <style>
-.item {
-    background-color: #fff;
-    padding: 10px;
-    border-radius: 10px;
-    border: 1px solid #eaebf0;
-    cursor: pointer;
-    transition: border .5s, box-shadow .5s;
-}
-    .item * {
- text-align: center;
-}
- .item p{
- margin: 0 !important;
-}
+        .item {
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #eaebf0;
+            cursor: pointer;
+            transition: border .5s, box-shadow .5s;
+        }
+            .item * {
+        text-align: center;
+        }
+        .item p{
+        margin: 0 !important;
+        }
 
-.visa_fees {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 1rem;
-    margin-top: 2rem;
-}
-    @media only screen and (min-width: 768px) {
-    .item .title {
-        font-size: .875rem;
-        line-height: 1.25rem;
-    }
-}
-.item .title {
-    color: #595b86;
-    font-size: .75rem;
-    line-height: 1rem;
-    line-height: normal;
-}
-    @media only screen and (min-width: 768px) {
-    .item .no_of_entries {
-        font-size: 15px;
-        font-weight: 500;
-    }
-}
-.item .no_of_entries {
-    color: var(--primary-900);
-    font-size: .875rem;
-    line-height: 1.25rem;
-    font-weight: 500;
-    line-height: normal;
-}
-    @media (min-width: 768px) {
-    .item .purpose {
-        font-size: .75rem;
-        line-height: 1rem;
-    }
-}
-.item .purpose {
-    color: #666885;
-    font-size: 11px;
-}
-    .item .travel-purpose {
-    margin-top: 10px;
-    padding: 6px 10px;
-    background-color: #f9f9fb;
-    border-radius: 5px;
-}
-    .filter {
-        margin-bottom: 20px;
-    }
-    .category-tabs {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 20px;
-    }
-    .category-tab {
+        .visa_fees {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+            @media only screen and (min-width: 768px) {
+            .item .title {
+                font-size: .875rem;
+                line-height: 1.25rem;
+            }
+        }
+        .item .title {
+            color: #595b86;
+            font-size: .75rem;
+            line-height: 1rem;
+            line-height: normal;
+        }
+            @media only screen and (min-width: 768px) {
+            .item .no_of_entries {
+                font-size: 15px;
+                font-weight: 500;
+            }
+        }
+        .item .no_of_entries {
+            color: var(--primary-900);
+            font-size: .875rem;
+            line-height: 1.25rem;
+            font-weight: 500;
+            line-height: normal;
+        }
+            @media (min-width: 768px) {
+            .item .purpose {
+                font-size: .75rem;
+                line-height: 1rem;
+            }
+        }
+        .item .purpose {
+            color: #666885;
+            font-size: 11px;
+        }
+            .item .travel-purpose {
+            margin-top: 10px;
+            padding: 6px 10px;
+            background-color: #f9f9fb;
+            border-radius: 5px;
+        }
+            .filter {
+                margin-bottom: 20px;
+            }
+            .category-tabs {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+            .category-tab {
+                cursor: pointer;
+                padding: 10px;
+                background-color: #fff;
+                border-radius: 5px;
+            }
+            .category-tab.active {
+                background-color: #2f3268;
+                color: #fff;
+            }
+        select#country-filter {
+            width: max-content;
+        }
+            .pagination {
+                margin-top: 20px;
+                display: flex;
+                justify-content: center;
+                gap: 5px;
+            }
+            .pagination a {
+                padding: 5px 10px;
+                border: 1px solid #eaebf0;
+                border-radius: 5px;
+                text-decoration: none;
+                color: #2f3268;
         cursor: pointer;
-        padding: 10px;
-        background-color: #fff;
-        border-radius: 5px;
-    }
-    .category-tab.active {
-        background-color: #2f3268;
-        color: #fff;
-    }
-select#country-filter {
-    width: max-content;
-}
-    .pagination {
-        margin-top: 20px;
-        display: flex;
-        justify-content: center;
-        gap: 5px;
-    }
-    .pagination a {
-        padding: 5px 10px;
-        border: 1px solid #eaebf0;
-        border-radius: 5px;
-        text-decoration: none;
-        color: #2f3268;
-cursor: pointer;
-    }
-    .pagination a.active {
-        border-color: #2f3268;
-    }
-    .pagination .disabled {
-        color: #ccc;
-        pointer-events: none;
-    }
-        @media(max-width:767px){
-.category-tabs {
-    overflow-x: scroll;
-}
-    .category-tab {
-    min-width: max-content;
-}
-}
+            }
+            .pagination a.active {
+                border-color: #2f3268;
+            }
+            .pagination .disabled {
+                color: #ccc;
+                pointer-events: none;
+            }
+                @media(max-width:767px){
+        .category-tabs {
+            overflow-x: scroll;
+        }
+            .category-tab {
+            min-width: max-content;
+        }
+        }
     </style>
     <div class="filter category_search !mt-0 flex flex-col justify-center sm:flex-row gap-2 items-center">
     <p class="text-lg m-0" style="margin:0;">Search by Country:</p>
@@ -514,8 +514,7 @@ cursor: pointer;
     foreach ($visa_fees as $fee) {
         $country_code = strtolower($fee->country_short);
         $image_src = $plugin_url . '../asstes/countries/' . $country_code . '.svg';
-        echo '<a href="/' . strtolower(str_replace(' ', '-', esc_attr($fee->country))) . '/apply-online/">';
-        echo '<div class="item" data-country="' . esc_attr($fee->country) . '" data-category="' . esc_attr($fee->category) . '">';
+        echo '<a href="/' . strtolower(str_replace(' ', '-', esc_attr($fee->country))) . '/apply-online/" class="item" data-country="' . esc_attr($fee->country) . '" data-category="' . esc_attr($fee->category) . '">';
         echo '<p class="title">' . esc_html($fee->title) . '</p>';
         echo '<p class="no_of_entries">' . esc_html($fee->entry_details) . '</p>';
         echo '<hr style="border-bottom: 1px solid #eaebf0; margin: 10px 0; ">';
@@ -534,7 +533,6 @@ cursor: pointer;
         echo '<div class="flex" style="justify-content: space-between;">
         <div class="flex items-center gap-[5px]"><img class="h-5 w-8 rounded-[3px] md:h-6 md:w-10" src="' . esc_url($image_src) . '"> <p>' . esc_html($fee->country) . '</p></div>';
         echo '<p class="flex flex-col justify-center items-center gap-2"><span class="title-regular-11 -mb-2 hidden text-[var(--gray-500)] md:inline">Visa Fee</span><span style="color:#0f0f24;"> ' . esc_html($fee->visa_fee) . '</span></p></div>';
-        echo '</div>'; // Close item
         echo '</a>';
     }
 
@@ -910,27 +908,27 @@ function tracking_id_shortcode($atts)
                     <p><strong>Going From:</strong> <?php echo esc_html(ucwords($going_form === "" ? "N/A" : $going_form ?? "N/A")); ?></p>
                     <p><strong>Going To:</strong> <?php echo esc_html(ucwords($going_to === "" ? "N/A" : $going_to ?? "N/A")); ?></p>
                     <p><strong>Category:</strong> <?php echo esc_html(ucwords($visa_cata === "" ? "N/A" : $visa_cata ?? "N/A")); ?></p>
-                    <p class="status <?php echo esc_html($application_status["payment_status"]); ?>"><strong>Payment Status:</strong> <span><?php echo esc_html($application_status["payment_status"]??"Pending"); ?></span></p>
+                    <p class="status <?php echo esc_html($application_status["payment_status"]); ?>"><strong>Payment Status:</strong> <span><?php echo esc_html($application_status["payment_status"] ?? "Pending"); ?></span></p>
                 </div>
 
                 <div class="timeline-contents">
                     <div class="timeline-item success">
                         <div>
                             <h3>Application Received</h3>
-                            <p class="status">Status: <?php echo esc_html($application_status["application_received_status"]??"Pending"); ?></p>
+                            <p class="status">Status: <?php echo esc_html($application_status["application_received_status"] ?? "Pending"); ?></p>
                         </div>
                         <div>
-                            <span>Received On: <?php echo esc_html($application_status["application_received_status_updated_at"]??"N/A"); ?></span>
+                            <span>Received On: <?php echo esc_html($application_status["application_received_status_updated_at"] ?? "N/A"); ?></span>
                         </div>
                     </div>
                     <div class="timeline-item <?php echo $application_status["document_process_status"] === "Rejected" ? 'failed' : 'success'; ?>">
                         <div>
                             <h3>Document Process</h3>
                             <p class="status">
-                                <?php echo $application_status["document_process_status"]??"" === "Not Added" ? 'Not added yet. <a href="/user/documents/" target="_blank">Add your document now</a>.' : 'Status: ' . esc_html($application_status["document_process_status"]??"Pending"); ?></p>
+                                <?php echo $application_status["document_process_status"] ?? "" === "Not Added" ? 'Not added yet. <a href="/user/documents/" target="_blank">Add your document now</a>.' : 'Status: ' . esc_html($application_status["document_process_status"] ?? "Pending"); ?></p>
                         </div>
                         <div>
-                            <span>Updated On: <?php echo esc_html($application_status["document_process_status_updated_at"]??"N/A"); ?></span>
+                            <span>Updated On: <?php echo esc_html($application_status["document_process_status_updated_at"] ?? "N/A"); ?></span>
                         </div>
                     </div>
                     <?php if (!empty($application_status["document_rejection_reason"]) && $application_status["document_process_status"] !== "Done" && $application_status["document_process_status"] !== "Pending"): ?>
@@ -950,22 +948,22 @@ function tracking_id_shortcode($atts)
                         </div>
                     <?php endif; ?>
                     <div class="timeline-item <?php echo $application_status["submitted_for_visa_status"] === "Submitted" ? 'success' : 'failed'; ?>">
-                        <?php echo $application_status["submitted_for_visa_status"]??"" === "Submitted" ? '<style>.timeline-contents::after {height: calc(82% - 31%);}</style>' : "" ?>
+                        <?php echo $application_status["submitted_for_visa_status"] ?? "" === "Submitted" ? '<style>.timeline-contents::after {height: calc(82% - 31%);}</style>' : "" ?>
                         <div>
                             <h3>Submitted For Visa</h3>
-                            <p class="status">Status: <?php echo esc_html($application_status["submitted_for_visa_status"]??"Pending"); ?></p>
+                            <p class="status">Status: <?php echo esc_html($application_status["submitted_for_visa_status"] ?? "Pending"); ?></p>
                         </div>
                         <div>
-                            <span>Updated On: <?php echo esc_html($application_status["submitted_for_visa_status_updated_at"]??"N/A"); ?></span>
+                            <span>Updated On: <?php echo esc_html($application_status["submitted_for_visa_status_updated_at"] ?? "N/A"); ?></span>
                         </div>
                     </div>
                     <div class="timeline-item <?php echo $application_status["immigration_status"] === "Approved" ? 'success' : 'failed'; ?>">
                         <div>
                             <h3>Immigration Status</h3>
-                            <p class="status">Status: <?php echo esc_html($application_status["immigration_status"]??"Pending"); ?></p>
+                            <p class="status">Status: <?php echo esc_html($application_status["immigration_status"] ?? "Pending"); ?></p>
                         </div>
                         <div>
-                            <span>Updated On: <?php echo esc_html($application_status["immigration_status_updated_at"]??"N/A"); ?></span>
+                            <span>Updated On: <?php echo esc_html($application_status["immigration_status_updated_at"] ?? "N/A"); ?></span>
                         </div>
                     </div>
                     <?php if (!empty($application_status["immigration_rejection_reason"]) && $application_status["immigration_status"] !== "Approved" && $application_status["immigration_status"] !== "Pending"): ?>
