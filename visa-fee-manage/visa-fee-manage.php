@@ -795,6 +795,12 @@ function tracking_id_shortcode($atts)
                     top: 41px;
                     animation: heightChange 2s ease-in-out forwards;
                 }
+                @keyframes heightChange {                    
+                    to {
+                        height: calc(82% - 59%);
+                    }
+                }
+
 
                 .timeline-item {
                     position: relative;
@@ -935,10 +941,6 @@ function tracking_id_shortcode($atts)
                     <?php if (!empty($application_status["document_rejection_reason"]) && $application_status["document_process_status"] !== "Done" && $application_status["document_process_status"] !== "Pending"): ?>
                         <style>
                             @keyframes heightChange {
-                                from {
-                                    height: calc(82% - 59%);
-                                }
-
                                 to {
                                     height: calc(82% - 64%);
                                 }
@@ -956,9 +958,7 @@ function tracking_id_shortcode($atts)
                     <?php endif; ?>
                     <div class="timeline-item <?php echo $application_status["submitted_for_visa_status"] === "Submitted" ? 'success' : 'failed'; ?>">
                         <?php echo ($application_status["submitted_for_visa_status"] ?? "") === "Submitted" ? '<style>@keyframes heightChange {
-                            from {
-                                height: calc(82% - 59%);
-                            }
+                           
                             to {
                                 height: calc(82% - 31%);
                             }
@@ -973,9 +973,7 @@ function tracking_id_shortcode($atts)
                     </div>
                     <div class="timeline-item <?php echo $application_status["immigration_status"] === "Approved" ? 'success' : 'failed'; ?>">
                         <?php echo $application_status["immigration_status"] === "Approved" ? '<style>@keyframes heightChange {
-                            from {
-                                height: calc(82% - 59%);
-                            }
+                            
                             to {
                                 height: calc(82% - 0%);
                             }
@@ -991,9 +989,7 @@ function tracking_id_shortcode($atts)
                     <?php if (!empty($application_status["immigration_rejection_reason"]) && $application_status["immigration_status"] !== "Approved" && $application_status["immigration_status"] !== "Pending"): ?>
                         <style>
                             @keyframes heightChange {
-                                from {
-                                    height: calc(82% - 59%);
-                                }
+                                
 
                                 to {
                                     height: calc(82% - 66%);
@@ -1001,9 +997,7 @@ function tracking_id_shortcode($atts)
                             }
                         </style>
                         <?php echo $application_status["submitted_for_visa_status"] === "Submitted" ? '<style>@keyframes heightChange {
-                            from {
-                                height: calc(82% - 59%);
-                            }
+                           
                             to {
                                 height: calc(82% - 44%);
                             }
