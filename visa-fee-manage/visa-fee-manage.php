@@ -787,12 +787,13 @@ function tracking_id_shortcode($atts)
 
                 .timeline-contents::after {
                     content: "";
-                    height: calc(82% - 59%);
+                    height: 0%;
                     width: 5px;
                     background: #3498db;
                     position: absolute;
                     left: 11px;
                     top: 41px;
+                    animation: heightChange 2s ease-in-out forwards;
                 }
 
                 .timeline-item {
@@ -925,7 +926,7 @@ function tracking_id_shortcode($atts)
                         <div>
                             <h3>Document Process</h3>
                             <p class="status">
-                                <?php echo $application_status["document_process_status"] ?? "" === "Not Added" ? 'Not added yet. <a href="/user/documents/" target="_blank">Add your document now</a>.' : 'Status: ' . esc_html($application_status["document_process_status"] ?? "Pending"); ?></p>
+                                <?php echo ($application_status["document_process_status"] ?? "") === "Not Added" ? 'Not added yet. <a href="/user/documents/" target="_blank">Add your document now</a>.' : 'Status: ' . esc_html($application_status["document_process_status"] ?? "Pending"); ?></p>
                         </div>
                         <div>
                             <span>Updated On: <?php echo esc_html($application_status["document_process_status_updated_at"] ?? "N/A"); ?></span>
@@ -933,8 +934,14 @@ function tracking_id_shortcode($atts)
                     </div>
                     <?php if (!empty($application_status["document_rejection_reason"]) && $application_status["document_process_status"] !== "Done" && $application_status["document_process_status"] !== "Pending"): ?>
                         <style>
-                            .timeline-contents::after {
-                                height: calc(82% - 64%);
+                            @keyframes heightChange {
+                                from {
+                                    height: calc(82% - 59%);
+                                }
+
+                                to {
+                                    height: calc(82% - 64%);
+                                }
                             }
                         </style>
                         <div class="timeline-item failed">
@@ -948,7 +955,14 @@ function tracking_id_shortcode($atts)
                         </div>
                     <?php endif; ?>
                     <div class="timeline-item <?php echo $application_status["submitted_for_visa_status"] === "Submitted" ? 'success' : 'failed'; ?>">
-                        <?php echo $application_status["submitted_for_visa_status"] ?? "" === "Submitted" ? '<style>.timeline-contents::after {height: calc(82% - 31%);}</style>' : "" ?>
+                        <?php echo ($application_status["submitted_for_visa_status"] ?? "") === "Submitted" ? '<style>@keyframes heightChange {
+                            from {
+                                height: calc(82% - 59%);
+                            }
+                            to {
+                                height: calc(82% - 31%);
+                            }
+                        }</style>' : ""; ?>
                         <div>
                             <h3>Submitted For Visa</h3>
                             <p class="status">Status: <?php echo esc_html($application_status["submitted_for_visa_status"] ?? "Pending"); ?></p>
@@ -958,6 +972,14 @@ function tracking_id_shortcode($atts)
                         </div>
                     </div>
                     <div class="timeline-item <?php echo $application_status["immigration_status"] === "Approved" ? 'success' : 'failed'; ?>">
+                        <?php echo $application_status["immigration_status"] === "Approved" ? '<style>@keyframes heightChange {
+                            from {
+                                height: calc(82% - 59%);
+                            }
+                            to {
+                                height: calc(82% - 0%);
+                            }
+                        }</style>' : "" ?>
                         <div>
                             <h3>Immigration Status</h3>
                             <p class="status">Status: <?php echo esc_html($application_status["immigration_status"] ?? "Pending"); ?></p>
@@ -968,11 +990,24 @@ function tracking_id_shortcode($atts)
                     </div>
                     <?php if (!empty($application_status["immigration_rejection_reason"]) && $application_status["immigration_status"] !== "Approved" && $application_status["immigration_status"] !== "Pending"): ?>
                         <style>
-                            .timeline-contents::after {
-                                height: calc(82% - 66%);
+                            @keyframes heightChange {
+                                from {
+                                    height: calc(82% - 59%);
+                                }
+
+                                to {
+                                    height: calc(82% - 66%);
+                                }
                             }
                         </style>
-                        <?php echo $application_status["submitted_for_visa_status"] === "Submitted" ? '<style>.timeline-contents::after {height: calc(82% - 44%);}</style>' : "" ?>
+                        <?php echo $application_status["submitted_for_visa_status"] === "Submitted" ? '<style>@keyframes heightChange {
+                            from {
+                                height: calc(82% - 59%);
+                            }
+                            to {
+                                height: calc(82% - 44%);
+                            }
+                        }</style>' : "" ?>
                         <div class="timeline-item failed">
                             <div>
                                 <h3>Immigration Rejection Reason</h3>
