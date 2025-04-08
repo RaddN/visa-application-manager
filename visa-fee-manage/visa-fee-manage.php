@@ -672,6 +672,8 @@ function tracking_id_shortcode($atts)
 {
     if (isset($_POST['tracking_id'])) {
         $tracking_id = sanitize_text_field($_POST['tracking_id']);
+        // tgh112437_27 take the second part of the tracking id
+        $tracking_id = explode('_', $tracking_id)[1]??$tracking_id;
         global $wpdb;
         $atts = shortcode_atts(array(
             'application_form_id' => '0'
@@ -972,7 +974,7 @@ function tracking_id_shortcode($atts)
                         </div>
                     </div>
                     <div class="timeline-item <?php echo $application_status["immigration_status"] === "Approved" ? 'success' : 'failed'; ?>">
-                        <?php echo $application_status["immigration_status"] === "Approved" ? '<style>@keyframes heightChange {
+                        <?php echo isset($application_status["immigration_status"]) && $application_status["immigration_status"]  === "Approved" ? '<style>@keyframes heightChange {
                             
                             to {
                                 height: calc(82% - 0%);
@@ -1104,7 +1106,7 @@ function visa_fee_applicants_page()
             echo '<td>' . esc_html($total_applied_visa) . '</td>'; // Show the count
             echo '<td>';
             foreach ($entry_ids as $index => $entry_id) {
-                echo '<a href="' . esc_url(admin_url('admin.php?page=wpforms-entries&view=details&entry_id=' . $entry_id)) . '" target="_blank">' . esc_html($entry_id) . '</a>';
+                echo '<a href="' . esc_url(admin_url('admin.php?page=wpforms-entries&view=details&entry_id=' . $entry_id)) . '" target="_blank">tgh112437_' . esc_html($entry_id) . '</a>';
                 if ($index < count($entry_ids) - 1) {
                     echo ', ';
                 }
@@ -1267,7 +1269,7 @@ function visa_fee_applicants_page()
                         ));
                         echo "if (userId == '{$subscriber->ID}') {";
                         foreach ($entry_ids as $entry_id) {
-                            echo "options += '<option value=\"{$entry_id}\">{$entry_id}</option>';";
+                            echo "options += '<option value=\"{$entry_id}\">tgh112437_{$entry_id}</option>';";
                         }
                         echo "}";
                     }
