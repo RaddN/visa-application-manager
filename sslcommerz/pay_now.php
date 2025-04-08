@@ -384,6 +384,7 @@ function sslcommerz_enqueue_scripts()
         font-weight: bold;
         transition: background-color 0.3s;
         font-size: 16px;
+        width: max-content;
     }
     .sslcommerz-pay-button:hover {
         background-color: #0056b3;
